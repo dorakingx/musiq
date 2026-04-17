@@ -57,6 +57,8 @@ class QWaveGUI:
         # Output directory
         self.output_dir = Path(DEFAULT_GENERATED_AUDIO_DIR)
         self.output_dir.mkdir(parents=True, exist_ok=True)
+        self.waveform_image_dir = self.output_dir.parent / "generated_waveform_png"
+        self.waveform_image_dir.mkdir(parents=True, exist_ok=True)
         
         # Waveform window for playback monitoring
         self.waveform_window = None
@@ -500,6 +502,7 @@ class QWaveGUI:
                 # Save to output directory
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 filename = self.output_dir / f"qwave_{timestamp}.wav"
+                waveform_png = self.waveform_image_dir / f"qwave_{timestamp}.png"
                 self.generator.save_wav(waveform, str(filename))
                 self.current_audio_path = str(filename)
                 self.latest_waveform = waveform
@@ -512,11 +515,18 @@ class QWaveGUI:
                 # Display analysis
                 self.root.after(0, self.display_analysis, analysis_results)
                 
-                # Update visualization
-                self.root.after(0, self.waveform_plotter.plot_waveform, waveform, sample_rate)
+                # Update visualization and save the left-bottom waveform panel as PNG.
+                self.root.after(
+                    0,
+                    self.plot_and_save_waveform_panel,
+                    waveform,
+                    sample_rate,
+                    str(waveform_png),
+                )
                 
                 self.root.after(0, self.set_status, "Audio generated successfully!")
                 self.root.after(0, self.log, f"Audio saved to: {filename}")
+                self.root.after(0, self.log, f"Waveform PNG saved to: {waveform_png}")
                 
             except Exception as e:
                 self.root.after(0, messagebox.showerror, "Error", f"Failed to generate audio: {str(e)}")
@@ -850,6 +860,11 @@ class QWaveGUI:
         text += f"Quantum Likelihood:     {results.get('quantum_likelihood_score', 0):.4f}\n"
         
         self.analysis_text.insert(1.0, text)
+
+    def plot_and_save_waveform_panel(self, waveform: np.ndarray, sample_rate: int, png_path: str):
+        """Render waveform panel and save the panel figure as PNG."""
+        self.waveform_plotter.plot_waveform(waveform, sample_rate)
+        self.waveform_plotter.figure.savefig(png_path, dpi=150, bbox_inches="tight")
     
     def open_waveform_window(self, waveform: np.ndarray, sample_rate: int):
         """Open a separate window displaying the waveform."""
