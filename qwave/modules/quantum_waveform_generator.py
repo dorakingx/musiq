@@ -6,7 +6,8 @@ from the quantum outcome distribution, not classical random generation.
 """
 
 import numpy as np
-from qiskit import QuantumCircuit, execute, Aer
+from qiskit import QuantumCircuit, transpile
+from qiskit_aer import Aer
 from qiskit.circuit import ParameterVector
 from qiskit.quantum_info import Statevector
 from typing import Dict, Optional, List
@@ -162,9 +163,10 @@ class QuantumWaveformGenerator:
         Returns:
             ビット列 -> カウントの辞書
         """
-        job = execute(qc, self.backend, shots=shots)
+        tqc = transpile(qc, self.backend)
+        job = self.backend.run(tqc, shots=shots)
         result = job.result()
-        counts = result.get_counts(qc)
+        counts = result.get_counts()
         
         return counts
     

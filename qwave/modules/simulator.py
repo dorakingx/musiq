@@ -8,10 +8,10 @@ benchmarking for NEDO grant pre-validation.
 """
 
 import numpy as np
-from qiskit import QuantumCircuit
+from qiskit import QuantumCircuit, ClassicalRegister, transpile
 from qiskit_aer import Aer, AerSimulator
 from qiskit_aer.noise import NoiseModel, depolarizing_error
-from qiskit.transpiler import transpile, CouplingMap
+from qiskit.transpiler import CouplingMap
 from qiskit.quantum_info import Statevector
 from typing import Dict, List, Optional, Any
 import os
@@ -66,7 +66,34 @@ class QuantumSimulator:
         self.measurement_results = None
         self.probability_distribution = None
         self.statevector = None
-    
+
+    def _circuit_for_shots(self) -> QuantumCircuit:
+        """
+        Return a circuit suitable for shot-based simulation with counts.
+
+        QASM / GUI circuits may have classical registers but no measure gates;
+        Aer then returns no counts. In that case we measure every qubit in the
+        computational basis (qubit i -> classical bit i). If there are no
+        classical bits, a register is added first.
+        """
+        qc = self.circuit.copy()
+        has_measure = any(getattr(inst.operation, "name", "") == "measure" for inst in qc.data)
+        if has_measure:
+            return qc
+        n = qc.num_qubits
+        if n == 0:
+            return qc
+        if qc.num_clbits == 0:
+            qc.add_register(ClassicalRegister(n, "meas"))
+            for i in range(n):
+                qc.measure(i, i)
+        elif qc.num_clbits >= n:
+            for i in range(n):
+                qc.measure(i, i)
+        else:
+            qc.measure_all()
+        return qc
+
     def load_circuit_from_qasm(self, qasm_file_path: str) -> QuantumCircuit:
         """
         Load a quantum circuit from a QASM file.
@@ -124,13 +151,14 @@ class QuantumSimulator:
         if self.circuit is None:
             raise RuntimeError("No circuit loaded. Call load_circuit_from_qasm() or load_circuit() first.")
 
+        shot_circuit = self._circuit_for_shots()
         if noise_model is not None:
             backend = AerSimulator(noise_model=noise_model)
-            job = backend.run(self.circuit, shots=self.shots)
+            job = backend.run(shot_circuit, shots=self.shots)
         else:
-            job = self.backend.run(self.circuit, shots=self.shots)
+            job = self.backend.run(shot_circuit, shots=self.shots)
         result = job.result()
-        self.measurement_results = result.get_counts(self.circuit)
+        self.measurement_results = result.get_counts()
 
         return self.measurement_results
     

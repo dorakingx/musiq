@@ -1,19 +1,19 @@
 """
-Module B: Quantum Optimization and Music Structure Design
+Quantum Optimization Module
+
 Utilizing quantum variational algorithms (VQE/QAOA) to explore and optimize music structures
 """
 
 import numpy as np
-from qiskit import QuantumCircuit, Aer, execute
-from qiskit.algorithms import VQE, QAOA
-from qiskit.algorithms.optimizers import SPSA, COBYLA
-from qiskit.circuit.library import RealAmplitudes
+from qiskit import QuantumCircuit
+from qiskit_aer import Aer
+from qiskit_algorithms.optimizers import SPSA, COBYLA
 from typing import Dict, List, Callable, Optional
-import matplotlib.pyplot as plt
+import os
 
-from qwave.modules.quantum_waveform_generator import QuantumWaveformGenerator
-from qwave.modules.audio_analyzer import AudioAnalyzer
-from qwave.utils.quantum_audio_mapper import QuantumAudioMapper
+from qwave.modules.simulator import QuantumSimulator
+from qwave.modules.generator import AudioGenerator
+from qwave.modules.analyzer import SpectralAnalyzer
 from qwave.utils.constants import SAMPLING_RATE, DEFAULT_DURATION, DEFAULT_N_QUBITS
 
 
@@ -40,18 +40,15 @@ class QuantumOptimizer:
         self.sampling_rate = sampling_rate
         self.duration = duration
         
-        self.generator = QuantumWaveformGenerator(
-            n_qubits=n_qubits,
-            sampling_rate=sampling_rate,
-            duration=duration
-        )
-        self.analyzer = AudioAnalyzer(sampling_rate=sampling_rate)
+        self.simulator = QuantumSimulator(shots=512)
+        self.generator = AudioGenerator(sample_rate=sampling_rate)
+        self.analyzer = SpectralAnalyzer(sample_rate=sampling_rate)
         self.backend = Aer.get_backend('qasm_simulator')
         
         # Dependency injection
         self.custom_cost_function = cost_function
         self.custom_ansatz = ansatz
-        
+    
     def create_cost_function(
         self,
         target_emotion: str,
@@ -73,28 +70,28 @@ class QuantumOptimizer:
             # Default features based on emotion
             emotion_features = {
                 'energetic': {
-                    'average_frequency': 0.8,
-                    'spectral_centroid': 0.9,
-                    'rhythmic_complexity': 0.8,
-                    'harmonic_richness': 0.7
+                    'spectral_centroid_hz': 3000.0,
+                    'spectral_entropy': 0.8,
+                    'modulation_depth': 0.8,
+                    'non_stationarity_index': 0.7
                 },
                 'calm': {
-                    'average_frequency': 0.3,
-                    'spectral_centroid': 0.3,
-                    'rhythmic_complexity': 0.2,
-                    'harmonic_richness': 0.5
+                    'spectral_centroid_hz': 1000.0,
+                    'spectral_entropy': 0.4,
+                    'modulation_depth': 0.2,
+                    'non_stationarity_index': 0.2
                 },
                 'mysterious': {
-                    'average_frequency': 0.5,
-                    'spectral_centroid': 0.4,
-                    'rhythmic_complexity': 0.6,
-                    'harmonic_richness': 0.6
+                    'spectral_centroid_hz': 2000.0,
+                    'spectral_entropy': 0.6,
+                    'modulation_depth': 0.6,
+                    'non_stationarity_index': 0.5
                 },
                 'happy': {
-                    'average_frequency': 0.7,
-                    'spectral_centroid': 0.7,
-                    'rhythmic_complexity': 0.7,
-                    'harmonic_richness': 0.8
+                    'spectral_centroid_hz': 2500.0,
+                    'spectral_entropy': 0.7,
+                    'modulation_depth': 0.7,
+                    'non_stationarity_index': 0.6
                 }
             }
             target_features = emotion_features.get(target_emotion, emotion_features['energetic'])
@@ -105,22 +102,34 @@ class QuantumOptimizer:
                 # Generate circuit with parameters
                 qc = self._create_parameterized_circuit(circuit_params)
                 
+                # Simulate circuit
+                self.simulator.load_circuit(qc)
+                statevector = self.simulator.get_statevector()
+                measurement_sequence = self.simulator.get_measurement_sequence()
+                
                 # Generate waveform
-                waveform = self.generator.generate_waveform(
-                    qc=qc,
-                    shots=512,
+                waveform = self.generator.map_quantum_to_audio(
+                    statevector=statevector,
+                    measurement_sequence=measurement_sequence,
+                    duration=self.duration,
                     apply_envelope=True,
                     apply_reverb=False
                 )
                 
                 # Calculate features
-                features = self.analyzer.analyze_audio_features(waveform)
+                features = self.analyzer.analyze(waveform)
                 
                 # Calculate cost (distance from target)
                 cost = 0.0
                 for feature_name, target_value in target_features.items():
                     actual_value = features.get(feature_name, 0.0)
-                    cost += (actual_value - target_value) ** 2
+                    # Normalize feature values for comparison
+                    if 'hz' in feature_name.lower():
+                        # Frequency features - normalize by dividing by max expected (5000 Hz)
+                        cost += ((actual_value / 5000.0) - (target_value / 5000.0)) ** 2
+                    else:
+                        # Normalized features (0-1 range)
+                        cost += (actual_value - target_value) ** 2
                 
                 return cost
             except Exception as e:
@@ -211,14 +220,6 @@ class QuantumOptimizer:
         n_params = 2 * self.n_qubits * 2
         initial_params = np.random.uniform(0, 2*np.pi, n_params)
         
-        # Select optimizer
-        if optimizer == 'SPSA':
-            opt = SPSA(maxiter=max_iterations)
-        elif optimizer == 'COBYLA':
-            opt = COBYLA(maxiter=max_iterations)
-        else:
-            raise ValueError(f"Unknown optimizer: {optimizer}")
-        
         # Execute optimization
         print(f"Optimizing for emotion: {target_emotion}")
         
@@ -285,16 +286,26 @@ class QuantumOptimizer:
             qc = self.custom_ansatz
         else:
             qc = self._create_parameterized_circuit(best_params)
-        waveform = self.generator.generate_waveform(
-            qc=qc,
-            shots=1024,
+        
+        # Simulate and generate
+        self.simulator.load_circuit(qc)
+        statevector = self.simulator.get_statevector()
+        measurement_sequence = self.simulator.get_measurement_sequence()
+        
+        waveform = self.generator.map_quantum_to_audio(
+            statevector=statevector,
+            measurement_sequence=measurement_sequence,
+            duration=self.duration,
             apply_envelope=True,
-            apply_reverb=True,
-            output_file=output_file
+            apply_reverb=True
         )
         
+        # Save if output file specified
+        if output_file:
+            self.generator.save_wav(waveform, output_file)
+        
         # Display features
-        features = self.analyzer.analyze_audio_features(waveform)
+        features = self.analyzer.analyze(waveform)
         print("\nGenerated audio features:")
         for name, value in features.items():
             print(f"  {name}: {value:.4f}")
@@ -316,7 +327,6 @@ class QuantumOptimizer:
         Returns:
             List of generated sample information
         """
-        import os
         os.makedirs(output_dir, exist_ok=True)
         
         samples = []
@@ -332,18 +342,25 @@ class QuantumOptimizer:
             # Create circuit
             qc = self._create_parameterized_circuit(params)
             
-            # Generate waveform
-            output_file = os.path.join(output_dir, f"sample_{i:03d}_{emotion}.wav")
-            waveform = self.generator.generate_waveform(
-                qc=qc,
-                shots=512,
+            # Simulate and generate
+            self.simulator.load_circuit(qc)
+            statevector = self.simulator.get_statevector()
+            measurement_sequence = self.simulator.get_measurement_sequence()
+            
+            waveform = self.generator.map_quantum_to_audio(
+                statevector=statevector,
+                measurement_sequence=measurement_sequence,
+                duration=self.duration,
                 apply_envelope=True,
-                apply_reverb=True,
-                output_file=output_file
+                apply_reverb=True
             )
             
+            # Save waveform
+            output_file = os.path.join(output_dir, f"sample_{i:03d}_{emotion}.wav")
+            self.generator.save_wav(waveform, output_file)
+            
             # Calculate features
-            features = self.analyzer.analyze_audio_features(waveform)
+            features = self.analyzer.analyze(waveform)
             
             samples.append({
                 'index': i,
@@ -355,3 +372,8 @@ class QuantumOptimizer:
             print(f"Generated sample {i+1}/{n_samples}: {emotion}")
         
         return samples
+
+
+
+
+

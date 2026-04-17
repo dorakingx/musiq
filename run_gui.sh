@@ -1,28 +1,26 @@
 #!/bin/bash
-# Script to run Q-Wave GUI using system Python (with Tkinter) and venv packages
+# Run Q-Wave GUI: project venv (pygame, qiskit, …) + PYTHONPATH for the qwave package layout.
 
-cd "$(dirname "$0")"
+set -e
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR"
 
-# Use system Python which has Tkinter support
-SYSTEM_PYTHON=/usr/bin/python3
+VENV_PY=""
+for candidate in "$SCRIPT_DIR/.venv/bin/python" "$SCRIPT_DIR/venv/bin/python"; do
+  if [ -x "$candidate" ]; then
+    VENV_PY=$candidate
+    break
+  fi
+done
 
-# Check if system Python has Tkinter
-if ! "$SYSTEM_PYTHON" -c "import tkinter" 2>/dev/null; then
-    echo "Error: System Python does not have Tkinter support."
-    echo "Please install python-tk: brew install python-tk"
-    exit 1
+if [ -z "$VENV_PY" ]; then
+  echo "Error: No virtualenv found at .venv or venv."
+  echo "Create one (Python 3.12 recommended) and install deps, e.g.:"
+  echo "  python3.12 -m venv .venv && .venv/bin/pip install -r requirements.txt"
+  exit 1
 fi
 
-# Add virtual environment packages to Python path
-VENV_PACKAGES="$(pwd)/venv/lib/python3.12/site-packages"
-export PYTHONPATH="$VENV_PACKAGES:$PYTHONPATH"
+# Repo root must be on PYTHONPATH so the `qwave` package directory resolves.
+export PYTHONPATH="$SCRIPT_DIR${PYTHONPATH:+:$PYTHONPATH}"
 
-# Check if required packages are available
-if ! "$SYSTEM_PYTHON" -c "import qiskit, librosa, numpy, scipy, soundfile, pygame" 2>/dev/null; then
-    echo "Warning: Some packages may not be compatible with system Python 3.9"
-    echo "Attempting to run anyway..."
-fi
-
-# Run the GUI application
-exec "$SYSTEM_PYTHON" qwave_gui.py
-
+exec "$VENV_PY" qwave_gui.py

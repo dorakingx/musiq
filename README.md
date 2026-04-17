@@ -25,10 +25,12 @@ This tool implements the core functionality of the Q-Wave project: converting qu
 
 ### Setup
 
-1. Install required dependencies:
+1. Create a virtual environment (recommended), then install dependencies:
 
 ```bash
 pip install -r requirements.txt
+# Optional: editable install so `import qwave` works without PYTHONPATH
+pip install -e .
 ```
 
 2. Verify installation:
@@ -180,18 +182,26 @@ The generated audio is analyzed to detect:
 ## Project Structure
 
 ```
-demo/
-├── qwave_gui.py              # GUI application (main entry point)
+.
+├── qwave/                    # Python package (`import qwave`)
+│   ├── modules/              # Simulator, audio generator, analyzer, optimizer
+│   ├── gui/                  # Tkinter UI (circuit builder, plots, playback)
+│   ├── utils/                # Constants and quantum–audio mapping helpers
+│   ├── examples/             # Sample scripts
+│   └── scripts/              # Utilities (e.g. verification scripts)
+├── qwave_gui.py              # GUI entry point
 ├── qwave_run.py              # CLI entry point
-├── circuit_builder.py        # Visual circuit builder widget
-├── quantum_simulator.py      # Quantum circuit simulation module
-├── audio_generator.py        # Audio waveform generation module
-├── spectral_analyzer.py      # Spectral analysis module
-├── requirements.txt          # Python dependencies
-├── README.md                 # Unified documentation (GUI + CLI)
-└── circuits/                 # Example QASM circuit files
-    ├── example_iqp.qasm      # 5-qubit IQP circuit
-    └── simple_entangled.qasm # 3-qubit entangled circuit
+├── run_gui.py                # Alternate GUI launcher (`python run_gui.py`)
+├── run_gui.sh                # GUI launcher with venv + PYTHONPATH
+├── requirements.txt
+├── pyproject.toml            # Optional: pip install -e .
+└── README.md
+```
+
+Install in editable mode (sets up imports without manual `PYTHONPATH`):
+
+```bash
+pip install -e .
 ```
 
 ## Understanding the Output

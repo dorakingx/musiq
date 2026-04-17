@@ -592,7 +592,7 @@ class QWaveGUI:
                 self.root.after(0, self.gen_visualizer.plot_spectrogram, waveform, SAMPLING_RATE, 2)
                 
                 # Analyze features
-        features = self.analyzer.analyze_audio_features(waveform)
+                features = self.analyzer.analyze_audio_features(waveform)
                 self.root.after(0, self.gen_visualizer.plot_features, features, 3)
                 
                 self.root.after(0, self.set_status, "Waveform generated successfully")

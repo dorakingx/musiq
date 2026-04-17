@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "qwave"
+version = "1.0.0"
+description = "Quantum circuit–based audio waveform generation (Q-Wave)"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "qiskit>=0.45.0",
+  "qiskit-aer>=0.13.0",
+  "qiskit-algorithms>=0.3.0",
+  "numpy>=1.24.0",
+  "scipy>=1.10.0",
+  "librosa>=0.10.0",
+  "soundfile>=0.12.0",
+  "matplotlib>=3.8.0",
+  "pygame>=2.5.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["qwave*"]
