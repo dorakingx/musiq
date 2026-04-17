@@ -510,7 +510,9 @@ class QWaveGUI:
                 
                 # Perform analysis
                 self.root.after(0, self.log, "Performing spectral analysis...")
-                analysis_results = self.analyzer.analyze(waveform)
+                analysis_results = self.analyzer.analyze(
+                    waveform, prob_dist=probability_dist
+                )
                 
                 # Display analysis
                 self.root.after(0, self.display_analysis, analysis_results)
@@ -574,12 +576,14 @@ class QWaveGUI:
                 self.simulator.load_circuit(circuit)
                 statevector = self.simulator.get_statevector()
                 measurement_sequence = self.simulator.get_measurement_sequence()
+                probability_dist = self.simulator.get_probability_distribution()
                 
                 # Generate audio
                 self.generator.sample_rate = SAMPLING_RATE
                 waveform = self.generator.map_quantum_to_audio(
                     statevector=statevector,
                     measurement_sequence=measurement_sequence,
+                    probability_distribution=probability_dist,
                     duration=duration,
                     apply_envelope=self.apply_envelope_var.get(),
                     apply_reverb=self.apply_reverb_var.get(),
@@ -595,7 +599,9 @@ class QWaveGUI:
                 self.root.after(0, self.gen_visualizer.plot_spectrogram, waveform, SAMPLING_RATE, 2)
                 
                 # Analyze features
-                features = self.analyzer.analyze_audio_features(waveform)
+                features = self.analyzer.analyze(
+                    waveform, prob_dist=probability_dist
+                )
                 self.root.after(0, self.gen_visualizer.plot_features, features, 3)
                 
                 self.root.after(0, self.set_status, "Waveform generated successfully")
@@ -854,9 +860,8 @@ class QWaveGUI:
         text += f"Spectral Spread Variation:     {results.get('spectral_spread_variation', 0):.4f}\n\n"
         
         text += "--- Quantum Pattern Indicators ---\n"
-        text += f"Spectral Entropy:        {results.get('spectral_entropy', 0):.4f}\n"
-        text += f"Phase Coherence:        {results.get('phase_coherence', 0):.4f}\n"
-        text += f"Periodicity Strength:   {results.get('periodicity_strength', 0):.4f}\n"
+        text += f"Spectral Entropy:       {results.get('spectral_entropy', 0):.4f}\n"
+        text += f"Mutual Information:     {results.get('mutual_information', 0):.4f} bits\n"
         text += f"Quantum Likelihood:     {results.get('quantum_likelihood_score', 0):.4f}\n"
         
         self.analysis_text.insert(1.0, text)

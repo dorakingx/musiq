@@ -34,12 +34,13 @@ class SpectralAnalyzer:
         """
         self.sample_rate = sample_rate
     
-    def analyze(self, waveform: np.ndarray) -> Dict[str, float]:
+    def analyze(self, waveform: np.ndarray, prob_dist: Optional[dict] = None) -> Dict[str, float]:
         """
         Perform comprehensive spectral analysis on the audio waveform.
         
         Args:
             waveform: Audio waveform array
+            prob_dist: Optional probability distribution from quantum simulation
             
         Returns:
             Dictionary containing various spectral metrics
@@ -56,7 +57,7 @@ class SpectralAnalyzer:
         results.update(self._compute_modulation_characteristics(waveform))
         
         # Quantum interference indicators
-        results.update(self._compute_quantum_indicators(waveform))
+        results.update(self._compute_quantum_indicators(waveform, prob_dist))
         
         return results
     
@@ -304,7 +305,52 @@ class SpectralAnalyzer:
             'spectral_spread_variation': spectral_spread_variation
         }
     
-    def _compute_quantum_indicators(self, waveform: np.ndarray) -> Dict[str, float]:
+    def _compute_mutual_information(self, prob_dist) -> float:
+        """Calculate mutual information by splitting bitstrings into two halves."""
+        if prob_dist is None:
+            return 0.0
+
+        prob_A = {}
+        prob_B = {}
+        normalized_prob_dist = {}
+
+        # Accept both dict[str, float] and ndarray probabilities from simulator.
+        if isinstance(prob_dist, dict):
+            items = prob_dist.items()
+        else:
+            probs = np.asarray(prob_dist, dtype=float).ravel()
+            if probs.size == 0:
+                return 0.0
+            n_qubits = int(np.ceil(np.log2(probs.size))) if probs.size > 1 else 1
+            items = (
+                (format(i, f"0{n_qubits}b"), p)
+                for i, p in enumerate(probs)
+            )
+
+        for bitstring, prob in items:
+            state = str(bitstring)
+            p = float(prob)
+            if p <= 0:
+                continue
+            mid = len(state) // 2
+            part_A = state[:mid]
+            part_B = state[mid:]
+
+            prob_A[part_A] = prob_A.get(part_A, 0.0) + p
+            prob_B[part_B] = prob_B.get(part_B, 0.0) + p
+            normalized_prob_dist[state] = normalized_prob_dist.get(state, 0.0) + p
+
+        def shannon_entropy(p_dict: dict) -> float:
+            return float(-sum(p * np.log2(p) for p in p_dict.values() if p > 0))
+
+        h_A = shannon_entropy(prob_A)
+        h_B = shannon_entropy(prob_B)
+        h_AB = shannon_entropy(normalized_prob_dist)
+
+        # Mutual Information: I(A;B) = H(A) + H(B) - H(A,B)
+        return max(0.0, h_A + h_B - h_AB)
+
+    def _compute_quantum_indicators(self, waveform: np.ndarray, prob_dist: Optional[dict] = None) -> Dict[str, float]:
         """
         Compute indicators specific to quantum-generated audio.
         
@@ -313,12 +359,13 @@ class SpectralAnalyzer:
         
         Args:
             waveform: Audio waveform array
+            prob_dist: Optional probability distribution from quantum simulation
             
         Returns:
             Dictionary of quantum-specific metrics
         """
         # Compute power spectral density
-        frequencies, psd = signal.welch(
+        _frequencies, psd = signal.welch(
             waveform,
             self.sample_rate,
             nperseg=min(2048, len(waveform) // 4)
@@ -329,39 +376,13 @@ class SpectralAnalyzer:
         
         # Spectral entropy (measure of spectral complexity)
         # Higher entropy suggests more complex, potentially quantum-like patterns
-        spectral_entropy = entropy(psd_normalized + 1e-10)
-        
-        # Interference pattern strength
-        # Look for patterns in phase relationships
-        analytic_signal = signal.hilbert(waveform)
-        phase = np.angle(analytic_signal)
-        phase_diff = np.diff(phase)
-        
-        # Measure phase coherence (quantum interference should show specific phase patterns)
-        phase_coherence = np.abs(np.mean(np.exp(1j * phase_diff))) if len(phase_diff) > 0 else 0.0
-        
-        # Spectral periodicity breakdown
-        # Quantum interference might break classical periodicity
-        autocorr = np.correlate(waveform, waveform, mode='full')
-        autocorr = autocorr[len(autocorr) // 2:]
-        autocorr = autocorr / (autocorr[0] + 1e-10)
-        
-        # Find dominant period
-        # Look for peaks in autocorrelation (excluding zero lag)
-        if len(autocorr) > 100:
-            peaks, _ = signal.find_peaks(autocorr[1:1000], height=0.1)
-            if len(peaks) > 0:
-                periodicity_strength = np.max(autocorr[peaks])
-            else:
-                periodicity_strength = 0.0
-        else:
-            periodicity_strength = 0.0
-        
+        spectral_entropy = float(entropy(psd_normalized + 1e-10))
+        mutual_info = self._compute_mutual_information(prob_dist) if prob_dist is not None else 0.0
+
         return {
             'spectral_entropy': spectral_entropy,
-            'phase_coherence': phase_coherence,
-            'periodicity_strength': periodicity_strength,
-            'quantum_likelihood_score': (spectral_entropy * (1 - phase_coherence) * (1 - periodicity_strength))
+            'mutual_information': mutual_info,
+            'quantum_likelihood_score': spectral_entropy * (mutual_info + 1.0)
         }
     
     def _compute_zero_crossing_rate(self, waveform: np.ndarray) -> float:
@@ -422,14 +443,13 @@ class SpectralAnalyzer:
         
         print("\n--- Quantum Pattern Indicators ---")
         print(f"Spectral Entropy:        {results['spectral_entropy']:.4f}")
-        print(f"Phase Coherence:        {results['phase_coherence']:.4f}")
-        print(f"Periodicity Strength:   {results['periodicity_strength']:.4f}")
+        print(f"Mutual Information:     {results['mutual_information']:.4f} bits")
         print(f"Quantum Likelihood:     {results['quantum_likelihood_score']:.4f}")
         
         print("\n" + "=" * 60)
         print("Interpretation:")
         print("- High non-stationarity index suggests time-varying spectral content")
-        print("- Low phase coherence may indicate quantum interference patterns")
+        print("- Higher mutual information suggests stronger bipartite correlations")
         print("- High spectral entropy suggests complex, non-classical structure")
         print("- Quantum likelihood score combines multiple indicators")
         print("=" * 60 + "\n")
