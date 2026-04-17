@@ -14,7 +14,7 @@ from typing import Dict, Optional, List
 import soundfile as sf
 from pathlib import Path
 
-from qwave.utils.quantum_audio_mapper import QuantumAudioMapper
+from qwave.utils.audio_mapper import QuantumAudioMapper
 from qwave.utils.constants import SAMPLING_RATE, DEFAULT_DURATION, DEFAULT_N_QUBITS, DEFAULT_SHOTS
 
 

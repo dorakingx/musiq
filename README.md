@@ -189,10 +189,10 @@ The generated audio is analyzed to detect:
 │   ├── utils/                # Constants and quantum–audio mapping helpers
 │   ├── examples/             # Sample scripts
 │   └── scripts/              # Utilities (e.g. verification scripts)
-├── qwave_gui.py              # GUI entry point
+├── qwave_gui.py              # GUI entry point (`python qwave_gui.py`)
 ├── qwave_run.py              # CLI entry point
-├── run_gui.py                # Alternate GUI launcher (`python run_gui.py`)
 ├── run_gui.sh                # GUI launcher with venv + PYTHONPATH
+├── images/                   # Screenshots for README (optional)
 ├── requirements.txt
 ├── pyproject.toml            # Optional: pip install -e .
 ├── circuits/                 # Sample and reference OpenQASM 2.0 circuits

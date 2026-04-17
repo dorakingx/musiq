@@ -5,7 +5,7 @@
 ### ✅ モジュールA: 量子波形生成コア (QASM → WAV変換)
 
 **ファイル**: `qwave/modules/quantum_waveform_generator.py`
-**ユーティリティ**: `qwave/utils/quantum_audio_mapper.py`
+**ユーティリティ**: `qwave/utils/audio_mapper.py`
 
 **実装内容**:
 - ランダム量子回路の生成（full, linear, circularエンタングルメント）
@@ -93,7 +93,7 @@ pip install -r requirements.txt
 
 ### 2. GUIアプリケーション起動
 ```bash
-python run_gui.py
+python qwave_gui.py
 ```
 
 ### 3. サンプルスクリプト実行
@@ -131,7 +131,7 @@ Q-Wave/
 ├── output/                     # 出力ディレクトリ
 ├── requirements.txt            # 依存パッケージ
 ├── README.md                   # ドキュメント
-└── run_gui.py                  # GUIランチャー
+└── qwave_gui.py                # GUI エントリ（リポジトリルート）
 ```
 
 ## 今後の拡張可能性

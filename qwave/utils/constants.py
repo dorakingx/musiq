@@ -4,6 +4,16 @@ Q-Wave Project Constants
 Configuration constants for audio processing, quantum circuits, and effects.
 """
 
+from pathlib import Path
+
+# Project root: parent of the `qwave` package when running from a source checkout
+_QWAVE_PKG = Path(__file__).resolve().parent.parent
+_candidate_root = _QWAVE_PKG.parent
+if (_candidate_root / "pyproject.toml").is_file():
+    _REPO_ROOT = _candidate_root
+else:
+    _REPO_ROOT = Path.cwd()
+
 # Audio Processing Constants
 SAMPLING_RATE = 44100  # Sampling frequency (Hz)
 DEFAULT_DURATION = 2.0  # Default audio duration (seconds)
@@ -35,6 +45,6 @@ DEFAULT_WINDOW_WIDTH = 1400
 DEFAULT_WINDOW_HEIGHT = 900
 DEFAULT_CIRCUIT_BUILDER_QUBITS = 5
 
-# Output Constants
-DEFAULT_OUTPUT_DIR = "output"
-DEFAULT_GENERATED_AUDIO_DIR = "generated_audio"
+# Output Constants (always under repository root, not cwd-relative)
+DEFAULT_OUTPUT_DIR = str(_REPO_ROOT / "output")
+DEFAULT_GENERATED_AUDIO_DIR = str(_REPO_ROOT / "generated_audio")

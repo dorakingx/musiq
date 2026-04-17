@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 
 from qwave.modules.quantum_waveform_generator import QuantumWaveformGenerator
 from qwave.modules.audio_analyzer import AudioAnalyzer
-from qwave.utils.quantum_audio_mapper import QuantumAudioMapper
+from qwave.utils.audio_mapper import QuantumAudioMapper
 from qwave.utils.constants import SAMPLING_RATE, DEFAULT_DURATION, DEFAULT_N_QUBITS
 
 
