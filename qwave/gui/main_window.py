@@ -847,7 +847,7 @@ class QWaveGUI:
         text += f"Spectral Centroid:      {results.get('spectral_centroid_hz', 0):.2f} Hz\n"
         text += f"Spectral Bandwidth:     {results.get('spectral_bandwidth_hz', 0):.2f} Hz\n"
         text += f"Spectral Rolloff:       {results.get('spectral_rolloff_hz', 0):.2f} Hz\n"
-        text += f"Spectral Flatness:      {results.get('spectral_flatness', 0):.4f}\n\n"
+        text += "\n"
         
         text += "--- Non-Stationarity Analysis ---\n"
         text += f"Non-Stationarity Index: {results.get('non_stationarity_index', 0):.4f}\n"
@@ -861,8 +861,6 @@ class QWaveGUI:
         
         text += "--- Quantum Pattern Indicators ---\n"
         text += f"Spectral Entropy:       {results.get('spectral_entropy', 0):.4f}\n"
-        text += f"Mutual Information:     {results.get('mutual_information', 0):.4f} bits\n"
-        text += f"Quantum Likelihood:     {results.get('quantum_likelihood_score', 0):.4f}\n"
         
         self.analysis_text.insert(1.0, text)
 

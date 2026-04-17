@@ -374,9 +374,14 @@ class SpectralAnalyzer:
         # Normalize PSD
         psd_normalized = psd / (np.sum(psd) + 1e-10)
         
-        # Spectral entropy (measure of spectral complexity)
-        # Higher entropy suggests more complex, potentially quantum-like patterns
-        spectral_entropy = float(entropy(psd_normalized + 1e-10))
+        # Spectral entropy normalized to [0, 1] by dividing by max entropy log(N).
+        n_bins = len(psd_normalized)
+        if n_bins > 1:
+            spectral_entropy = float(
+                entropy(psd_normalized + 1e-10) / np.log(n_bins)
+            )
+        else:
+            spectral_entropy = 0.0
         mutual_info = self._compute_mutual_information(prob_dist) if prob_dist is not None else 0.0
 
         return {
@@ -429,7 +434,6 @@ class SpectralAnalyzer:
         print(f"Spectral Centroid:      {results['spectral_centroid_hz']:.2f} Hz")
         print(f"Spectral Bandwidth:     {results['spectral_bandwidth_hz']:.2f} Hz")
         print(f"Spectral Rolloff:       {results['spectral_rolloff_hz']:.2f} Hz")
-        print(f"Spectral Flatness:      {results['spectral_flatness']:.4f}")
         
         print("\n--- Non-Stationarity Analysis ---")
         print(f"Non-Stationarity Index: {results['non_stationarity_index']:.4f}")
@@ -443,8 +447,6 @@ class SpectralAnalyzer:
         
         print("\n--- Quantum Pattern Indicators ---")
         print(f"Spectral Entropy:        {results['spectral_entropy']:.4f}")
-        print(f"Mutual Information:     {results['mutual_information']:.4f} bits")
-        print(f"Quantum Likelihood:     {results['quantum_likelihood_score']:.4f}")
         
         print("\n" + "=" * 60)
         print("Interpretation:")
