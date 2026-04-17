@@ -88,35 +88,24 @@ class QWaveGUI:
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
         main_frame.columnconfigure(0, weight=1)
-        main_frame.rowconfigure(1, weight=1)
-        
-        # Create notebook for tabs
-        self.notebook = ttk.Notebook(main_frame)
-        self.notebook.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
-        
-        # Tab 1: Circuit Builder
-        self.create_circuit_builder_tab()
-        
-        # Tab 2: Waveform Generation
-        self.create_waveform_generation_tab()
-        
-        # Tab 3: Optimization
-        self.create_optimization_tab()
-        
-        # Tab 4: Analysis
-        self.create_analysis_tab()
+        main_frame.rowconfigure(0, weight=1)
+
+        # Single-screen layout: use the former Circuit Builder tab as the unified UI.
+        self.create_circuit_builder_tab(main_frame)
         
         # Status bar
         self.status_var = tk.StringVar(value="Ready")
         status_bar = ttk.Label(main_frame, textvariable=self.status_var, relief=tk.SUNKEN)
-        status_bar.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=(5, 0))
+        status_bar.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(5, 0))
     
-    def create_circuit_builder_tab(self):
-        """Create Circuit Builder tab."""
-        tab_frame = ttk.Frame(self.notebook, padding="10")
-        self.notebook.add(tab_frame, text="Circuit Builder")
+    def create_circuit_builder_tab(self, parent):
+        """Create the unified main screen (formerly the Circuit Builder tab)."""
+        tab_frame = ttk.Frame(parent, padding="10")
+        tab_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         
         tab_frame.columnconfigure(1, weight=1)
+        tab_frame.columnconfigure(2, weight=1)
+        tab_frame.rowconfigure(0, weight=1)
         tab_frame.rowconfigure(1, weight=1)
         
         # Left panel: Gate selection and controls
@@ -208,7 +197,7 @@ class QWaveGUI:
         ttk.Button(control_frame, text="Save Circuit", 
                   command=self.save_circuit).pack(fill=tk.X)
         
-        # Center: Circuit builder
+        # Left top: Quantum circuit
         center_frame = ttk.Frame(tab_frame)
         center_frame.grid(row=0, column=1, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(0, 10))
         center_frame.columnconfigure(0, weight=1)
@@ -241,31 +230,26 @@ class QWaveGUI:
         scrollbar_h.pack(side=tk.BOTTOM, fill=tk.X)
         self.circuit_builder.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         
-        # Right panel: Status and visualization
-        right_panel = ttk.Frame(tab_frame)
-        right_panel.grid(row=0, column=2, rowspan=2, sticky=(tk.W, tk.E, tk.N, tk.S))
-        right_panel.columnconfigure(0, weight=1)
-        right_panel.rowconfigure(1, weight=1)
-        
-        # Waveform visualization
-        waveform_frame = ttk.LabelFrame(right_panel, text="Waveform", padding="5")
-        waveform_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+        # Left bottom: generated waveform
+        waveform_frame = ttk.LabelFrame(tab_frame, text="Waveform", padding="5")
+        waveform_frame.grid(
+            row=1, column=1, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(0, 10), pady=(10, 0)
+        )
         self.waveform_plotter = WaveformPlotter(waveform_frame)
         self.waveform_plotter.get_widget().pack(fill=tk.BOTH, expand=True)
         self.waveform_plotter.clear()
         
-        # Analysis output
-        analysis_label = ttk.Label(right_panel, text="Analysis Output")
-        analysis_label.pack(anchor=tk.W, pady=(0, 5))
-        
+        # Right top: spectral metrics
+        metrics_frame = ttk.LabelFrame(tab_frame, text="Spectral Analysis Metrics", padding="5")
+        metrics_frame.grid(row=0, column=2, sticky=(tk.W, tk.E, tk.N, tk.S))
         self.analysis_text = scrolledtext.ScrolledText(
-            right_panel, width=40, height=15, wrap=tk.WORD
+            metrics_frame, width=40, height=14, wrap=tk.WORD
         )
         self.analysis_text.pack(fill=tk.BOTH, expand=True)
         
-        # Bottom: Log output
+        # Right bottom: log output
         log_frame = ttk.LabelFrame(tab_frame, text="Log", padding="5")
-        log_frame.grid(row=1, column=1, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(10, 0))
+        log_frame.grid(row=1, column=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(10, 0))
         log_frame.columnconfigure(0, weight=1)
         log_frame.rowconfigure(0, weight=1)
         
@@ -739,11 +723,12 @@ class QWaveGUI:
             pygame.mixer.music.set_volume(1.0)
             pygame.mixer.music.play()
             
+            # Keep playback visualization in the left-bottom waveform panel.
+            self.waveform_plotter.plot_waveform(waveform, int(sample_rate))
+            self.waveform_plotter.set_playback_cursor(0.0)
             self.log("Playing audio...")
             self.set_status("Playing audio...")
             
-            # Open waveform window
-            self.open_waveform_window(waveform, sample_rate)
             self.start_waveform_monitor()
             
         except Exception as e:
@@ -754,11 +739,7 @@ class QWaveGUI:
         if pygame.mixer.get_init():
             pygame.mixer.music.stop()
         self.stop_waveform_monitor()
-        if self.waveform_progress_line is not None and self.current_waveform_duration is not None:
-            self.waveform_progress_line.set_xdata([self.current_waveform_duration,
-                                                   self.current_waveform_duration])
-            if self.waveform_window_canvas:
-                self.waveform_window_canvas.draw_idle()
+        self.waveform_plotter.set_playback_cursor(self.waveform_plotter.waveform_duration)
         self.log("Audio stopped")
         self.set_status("Ready")
     
@@ -949,27 +930,19 @@ class QWaveGUI:
     def start_waveform_monitor(self):
         """Begin updating the waveform cursor to follow playback."""
         self.stop_waveform_monitor()
-        if self.waveform_window is None or self.waveform_progress_line is None:
+        if self.latest_waveform is None or self.latest_sample_rate is None:
             return
         self.playback_start_time = time.time()
 
         def update():
-            if self.waveform_window is None or self.waveform_progress_line is None:
-                self.playback_monitor_id = None
-                return
             if not pygame.mixer.get_init() or not pygame.mixer.music.get_busy():
-                x = self.current_waveform_duration or 0
-                self.waveform_progress_line.set_xdata([x, x])
-                if self.waveform_window_canvas:
-                    self.waveform_window_canvas.draw_idle()
+                self.waveform_plotter.set_playback_cursor(self.waveform_plotter.waveform_duration)
                 self.playback_monitor_id = None
                 return
             elapsed = time.time() - (self.playback_start_time or time.time())
-            duration = self.current_waveform_duration or 0
+            duration = self.waveform_plotter.waveform_duration
             x = min(elapsed, duration)
-            self.waveform_progress_line.set_xdata([x, x])
-            if self.waveform_window_canvas:
-                self.waveform_window_canvas.draw_idle()
+            self.waveform_plotter.set_playback_cursor(x)
             self.playback_monitor_id = self.root.after(100, update)
 
         update()

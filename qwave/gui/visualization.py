@@ -29,6 +29,8 @@ class WaveformPlotter:
         # Create subplots
         self.ax_waveform = self.figure.add_subplot(211)
         self.ax_spectrum = self.figure.add_subplot(212)
+        self.progress_line = None
+        self.waveform_duration = 0.0
         
         self._setup_axes()
     
@@ -54,6 +56,7 @@ class WaveformPlotter:
             waveform = np.mean(waveform, axis=1)
         
         duration = len(waveform) / sample_rate
+        self.waveform_duration = float(duration)
         time_axis = np.linspace(0, duration, len(waveform))
         
         # Downsample for display if too many points
@@ -74,6 +77,9 @@ class WaveformPlotter:
         self.ax_waveform.set_ylabel("Amplitude")
         self.ax_waveform.margins(x=0)
         self.ax_waveform.grid(True, alpha=0.3)
+        self.progress_line = self.ax_waveform.axvline(
+            0.0, color="red", linewidth=1.0, label="Playback Position"
+        )
         
         # Compute and plot spectrum
         freq_axis = np.fft.rfftfreq(len(waveform), d=1 / sample_rate)
@@ -90,11 +96,21 @@ class WaveformPlotter:
         
         self.figure.tight_layout()
         self.canvas.draw()
+
+    def set_playback_cursor(self, time_sec: float):
+        """Update playback cursor on the waveform plot."""
+        if self.progress_line is None:
+            return
+        x = max(0.0, min(float(time_sec), self.waveform_duration))
+        self.progress_line.set_xdata([x, x])
+        self.canvas.draw_idle()
     
     def clear(self):
         """Clear all plots."""
         self.ax_waveform.clear()
         self.ax_spectrum.clear()
+        self.progress_line = None
+        self.waveform_duration = 0.0
         self._setup_axes()
         self.canvas.draw()
     
