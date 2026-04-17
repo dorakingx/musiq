@@ -113,14 +113,14 @@ Additional tips:
 For scripted or automated usage:
 
 ```bash
-python qwave_run.py -c circuits/example_iqp.qasm -o output.wav
+python qwave_run.py -c circuits/example_iqp_4q.qasm -o output.wav
 ```
 
 ### Advanced Usage
 
 ```bash
 python qwave_run.py \
-  -c circuits/example_iqp.qasm \
+  -c circuits/example_iqp_4q.qasm \
   -o results/q_sound_01.wav \
   -d 10 \
   -s 48000 \
@@ -142,17 +142,17 @@ python qwave_run.py \
 
 **Generate 3-second audio from a simple circuit:**
 ```bash
-python qwave_run.py -c circuits/simple_entangled.qasm -o short_audio.wav -d 3
+python qwave_run.py -c circuits/simple_entangled_3q.qasm -o short_audio.wav -d 3
 ```
 
 **Generate high-quality audio with more measurements:**
 ```bash
-python qwave_run.py -c circuits/example_iqp.qasm -o hq_audio.wav -d 5 -shots 8192 -s 48000
+python qwave_run.py -c circuits/example_iqp_4q.qasm -o hq_audio.wav -d 5 -shots 8192 -s 48000
 ```
 
 **Generate audio without spectral analysis (faster):**
 ```bash
-python qwave_run.py -c circuits/example_iqp.qasm -o quick_audio.wav --no-analysis
+python qwave_run.py -c circuits/example_iqp_4q.qasm -o quick_audio.wav --no-analysis
 ```
 
 ## How It Works
@@ -195,6 +195,7 @@ The generated audio is analyzed to detect:
 ├── run_gui.sh                # GUI launcher with venv + PYTHONPATH
 ├── requirements.txt
 ├── pyproject.toml            # Optional: pip install -e .
+├── circuits/                 # Sample and reference OpenQASM 2.0 circuits
 └── README.md
 ```
 

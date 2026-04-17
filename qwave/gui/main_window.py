@@ -26,6 +26,7 @@ from qwave.modules.simulator import QuantumSimulator
 from qwave.modules.generator import AudioGenerator
 from qwave.modules.analyzer import SpectralAnalyzer
 from qwave.modules.optimizer import QuantumOptimizer
+from qwave.scripts.verify_quantum_walk import build_quantum_walk_circuit
 from qwave.utils.constants import (
     SAMPLING_RATE, DEFAULT_DURATION, DEFAULT_SHOTS, DEFAULT_N_QUBITS,
     DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT, DEFAULT_CIRCUIT_BUILDER_QUBITS,
@@ -296,7 +297,7 @@ class QWaveGUI:
         circuit_combo = ttk.Combobox(
             control_frame,
             textvariable=self.circuit_type_var,
-            values=["custom", "variational", "iqp"],
+            values=["custom", "variational", "iqp", "quantum_walk"],
             state="readonly",
             width=15
         )
@@ -561,11 +562,18 @@ class QWaveGUI:
                 shots = self.gen_shots_var.get()
                 circuit_type = self.circuit_type_var.get()
                 
-                # Create circuit (simplified - would use circuit builder or generate)
                 from qiskit import QuantumCircuit
-                circuit = QuantumCircuit(n_qubits)
-                circuit.h(range(n_qubits))
-                circuit.measure_all()
+                if circuit_type == "quantum_walk":
+                    circuit = build_quantum_walk_circuit(
+                        steps=n_qubits, num_qubits=n_qubits - 1
+                    )
+                    interference_mode = True
+                else:
+                    # Placeholder for custom / variational / iqp
+                    circuit = QuantumCircuit(n_qubits)
+                    circuit.h(range(n_qubits))
+                    circuit.measure_all()
+                    interference_mode = False
                 
                 # Simulate
                 self.simulator.shots = shots
@@ -580,7 +588,8 @@ class QWaveGUI:
                     measurement_sequence=measurement_sequence,
                     duration=duration,
                     apply_envelope=self.apply_envelope_var.get(),
-                    apply_reverb=self.apply_reverb_var.get()
+                    apply_reverb=self.apply_reverb_var.get(),
+                    interference_mode=interference_mode,
                 )
                 
                 self.latest_waveform = waveform
@@ -802,9 +811,15 @@ class QWaveGUI:
                 # Update number of qubits if needed
                 if circuit.num_qubits != self.num_qubits_var.get():
                     self.num_qubits_var.set(circuit.num_qubits)
-                
+
+                self.circuit_builder.load_from_qiskit_circuit(circuit)
+
                 self.log(f"Circuit loaded from: {filename}")
-                messagebox.showinfo("Success", f"Circuit loaded from:\n{filename}\n\nNote: Visual reconstruction not yet implemented.")
+                self.log("Visual reconstruction complete.")
+                messagebox.showinfo(
+                    "Success",
+                    f"Circuit successfully loaded and reconstructed from:\n{filename}",
+                )
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to load circuit: {str(e)}")
     

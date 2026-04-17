@@ -9,7 +9,7 @@ import tkinter as tk
 from tkinter import ttk
 from qiskit import QuantumCircuit
 from qiskit.qasm2 import dumps
-from typing import List, Optional
+from typing import Dict, List, Optional, Tuple
 
 
 class CircuitBuilderWidget(tk.Canvas):
@@ -58,6 +58,8 @@ class CircuitBuilderWidget(tk.Canvas):
         # Each gate is (column, gate_type, control_qubit if applicable)
         self.circuit_state = [[] for _ in range(num_qubits)]
         self.max_column = 0
+        # (column, min(ctrl,tgt), max(ctrl,tgt)) -> (control, target, gate_type) for CNOT/CZ
+        self._two_qubit_links: Dict[Tuple[int, int, int], Tuple[int, int, str]] = {}
         self.hover_column = None
         self.hover_qubit = None
         
@@ -161,6 +163,8 @@ class CircuitBuilderWidget(tk.Canvas):
                 self.remove_gates_in_column([qubit, qubit + 1], column)
                 self.circuit_state[qubit].append((column, gate_type, qubit + 1))
                 self.circuit_state[qubit + 1].append((column, gate_type, qubit))
+                lo, hi = sorted((qubit, qubit + 1))
+                self._two_qubit_links[(column, lo, hi)] = (qubit, qubit + 1, gate_type)
             else:
                 return
         else:
@@ -173,9 +177,15 @@ class CircuitBuilderWidget(tk.Canvas):
     
     def remove_gates_in_column(self, qubits: List[int], column: int):
         """Remove gates in a specific column for given qubits."""
+        keys_del = [
+            k for k in self._two_qubit_links
+            if k[0] == column and (k[1] in qubits or k[2] in qubits)
+        ]
+        for k in keys_del:
+            del self._two_qubit_links[k]
         for q in qubits:
             self.circuit_state[q] = [
-                (c, g, t) for c, g, t in self.circuit_state[q] 
+                (c, g, t) for c, g, t in self.circuit_state[q]
                 if c != column
             ]
 
@@ -189,6 +199,9 @@ class CircuitBuilderWidget(tk.Canvas):
                 continue
             new_entries.append((c, g, t))
         self.circuit_state[qubit] = new_entries
+        if partner is not None and gate_type in ("CNOT", "CZ"):
+            a, b = sorted((qubit, partner))
+            self._two_qubit_links.pop((column, a, b), None)
         if partner is not None and 0 <= partner < self.num_qubits:
             self.circuit_state[partner] = [
                 (c, g, t) for c, g, t in self.circuit_state[partner]
@@ -199,6 +212,7 @@ class CircuitBuilderWidget(tk.Canvas):
         """Clear the entire circuit."""
         self.circuit_state = [[] for _ in range(self.num_qubits)]
         self.max_column = 0
+        self._two_qubit_links.clear()
         self.draw_circuit()
     
     def draw_circuit(self):
@@ -219,12 +233,17 @@ class CircuitBuilderWidget(tk.Canvas):
             self.create_line(0, y, width, y, fill='gray', width=2, tags='qubit_line')
             self.create_text(10, y, text=f'q[{i}]', anchor='w', tags='qubit_label')
         
-        # Draw gates
+        # Draw gates (two-qubit links drawn once using stored control/target)
         for qubit in range(self.num_qubits):
             for column, gate_type, target_qubit in self.circuit_state[qubit]:
-                # Only draw if this is the primary qubit (not target of 2-qubit gate)
+                if gate_type in ("CNOT", "CZ") and target_qubit is not None:
+                    continue
                 if target_qubit is None or qubit < target_qubit:
                     self.draw_gate(qubit, column, gate_type, target_qubit)
+        for (column, _lo, _hi), (ctrl, tgt, gname) in sorted(
+            self._two_qubit_links.items(), key=lambda kv: kv[0][0]
+        ):
+            self.draw_gate(ctrl, column, gname, tgt)
         
         self._draw_hover_indicator()
     
@@ -353,6 +372,47 @@ class CircuitBuilderWidget(tk.Canvas):
     def on_resize(self, event):
         """Handle widget resize."""
         self.draw_circuit()
+
+    def load_from_qiskit_circuit(self, circuit: QuantumCircuit) -> None:
+        """Load a Qiskit QuantumCircuit into the visual builder."""
+        self.hover_column = None
+        self.hover_qubit = None
+        self._two_qubit_links.clear()
+
+        if circuit.num_qubits != self.num_qubits:
+            self.num_qubits = circuit.num_qubits
+        self.circuit_state = [[] for _ in range(self.num_qubits)]
+        self.max_column = 0
+
+        qubit_columns = {i: 0 for i in range(self.num_qubits)}
+
+        for instruction in circuit.data:
+            gate_name = instruction.operation.name.upper()
+            gate_map = {"CX": "CNOT", "MEASURE": "M"}
+            gui_gate_name = gate_map.get(gate_name, gate_name)
+
+            if gui_gate_name not in self.GATES:
+                continue
+
+            qubits = [circuit.find_bit(q).index for q in instruction.qubits]
+
+            if len(qubits) == 1:
+                q = qubits[0]
+                col = qubit_columns[q]
+                self.circuit_state[q].append((col, gui_gate_name, None))
+                qubit_columns[q] = col + 1
+            elif len(qubits) == 2:
+                q_ctrl, q_tgt = qubits[0], qubits[1]
+                lo, hi = sorted((q_ctrl, q_tgt))
+                col = max(qubit_columns[q_ctrl], qubit_columns[q_tgt])
+                self.circuit_state[q_ctrl].append((col, gui_gate_name, q_tgt))
+                self.circuit_state[q_tgt].append((col, gui_gate_name, q_ctrl))
+                self._two_qubit_links[(col, lo, hi)] = (q_ctrl, q_tgt, gui_gate_name)
+                qubit_columns[q_ctrl] = col + 1
+                qubit_columns[q_tgt] = col + 1
+
+        self.max_column = max(qubit_columns.values()) if qubit_columns else 0
+        self.draw_circuit()
     
     def to_qiskit_circuit(self) -> QuantumCircuit:
         """
@@ -363,12 +423,16 @@ class CircuitBuilderWidget(tk.Canvas):
         """
         circuit = QuantumCircuit(self.num_qubits, self.num_qubits)
         
-        # Collect all gates sorted by column
+        # Collect all gates sorted by column (two-qubit ops from link map)
         all_gates = []
         for qubit in range(self.num_qubits):
             for column, gate_type, target_qubit in self.circuit_state[qubit]:
+                if gate_type in ("CNOT", "CZ") and target_qubit is not None:
+                    continue
                 if target_qubit is None or qubit < target_qubit:
                     all_gates.append((column, qubit, gate_type, target_qubit))
+        for (column, lo, hi), (ctrl, tgt, gname) in self._two_qubit_links.items():
+            all_gates.append((column, ctrl, gname, tgt))
         
         # Sort by column
         all_gates.sort(key=lambda x: x[0])

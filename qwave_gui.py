@@ -472,19 +472,20 @@ class QWaveGUI:
         
         if filename:
             try:
-                # Load circuit using Qiskit
                 simulator = QuantumSimulator()
                 circuit = simulator.load_circuit_from_qasm(filename)
-                
-                # Update number of qubits if needed
+
                 if circuit.num_qubits != self.num_qubits_var.get():
                     self.num_qubits_var.set(circuit.num_qubits)
-                    # Note: Would need to recreate circuit builder widget
-                
-                # Clear and rebuild circuit in builder
-                # This is simplified - full implementation would parse QASM and place gates
+
+                self.circuit_builder.load_from_qiskit_circuit(circuit)
+
                 self.log(f"Circuit loaded from: {filename}")
-                messagebox.showinfo("Success", f"Circuit loaded from:\n{filename}\n\nNote: Visual reconstruction not yet implemented.")
+                self.log("Visual reconstruction complete.")
+                messagebox.showinfo(
+                    "Success",
+                    f"Circuit successfully loaded and reconstructed from:\n{filename}",
+                )
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to load circuit: {str(e)}")
     

@@ -26,7 +26,7 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python qwave_run.py -c circuits/iqp_10q.qasm -o results/q_sound_01.wav
+  python qwave_run.py -c circuits/example_iqp_4q.qasm -o results/q_sound_01.wav
   python qwave_run.py -c my_circuit.qasm -o output.wav -d 3 -shots 4096
   python qwave_run.py -c circuit.qasm -o sound.wav -s 48000 -d 10
         """
