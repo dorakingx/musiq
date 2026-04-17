@@ -57,7 +57,7 @@ class QWaveGUI:
         # Output directory
         self.output_dir = Path(DEFAULT_GENERATED_AUDIO_DIR)
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        self.waveform_image_dir = self.output_dir.parent / "generated_waveform_png"
+        self.waveform_image_dir = self.output_dir.parent / "generated_waveform"
         self.waveform_image_dir.mkdir(parents=True, exist_ok=True)
         
         # Waveform window for playback monitoring
