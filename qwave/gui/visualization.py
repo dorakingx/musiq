@@ -88,7 +88,20 @@ class WaveformPlotter:
         
         self.ax_spectrum.clear()
         self.ax_spectrum.plot(freq_axis, spectrum_db, color='#ff7043', linewidth=0.8)
-        self.ax_spectrum.set_xlim(0, min(10000, freq_axis[-1]))
+        # Auto-adjust x-range to where spectral energy actually exists.
+        # This avoids overly wide, mostly-empty frequency axes.
+        power = spectrum ** 2
+        total_power = np.sum(power)
+        if total_power > 0:
+            cumulative = np.cumsum(power) / total_power
+            cutoff_idx = int(np.searchsorted(cumulative, 0.995))
+            cutoff_idx = min(max(cutoff_idx, 1), len(freq_axis) - 1)
+            max_freq = float(freq_axis[cutoff_idx]) * 1.1
+            # Keep a sensible minimum window while capping at Nyquist.
+            max_freq = max(1000.0, min(max_freq, float(freq_axis[-1])))
+        else:
+            max_freq = min(10000.0, float(freq_axis[-1]))
+        self.ax_spectrum.set_xlim(0, max_freq)
         self.ax_spectrum.set_ylim(np.max(spectrum_db) - 80, np.max(spectrum_db) + 5)
         self.ax_spectrum.set_xlabel("Frequency (Hz)")
         self.ax_spectrum.set_ylabel("Magnitude (dB)")
