@@ -289,7 +289,11 @@ This CUI tool serves as the foundation for:
 
 ## License
 
-This project is part of the Q-Wave research initiative.
+This project is released under the [MIT License](https://opensource.org/licenses/MIT).
+
+## Acknowledgments
+
+This project receives support from the **Quantum Creative Challenge**.
 
 ## Contributing
 
