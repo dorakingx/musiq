@@ -22,7 +22,7 @@ import time
 
 from qwave.gui.circuit_builder import CircuitBuilderWidget
 from qwave.gui.visualization import WaveformPlotter, MultiPanelVisualizer
-from qwave.modules.simulator import QuantumSimulator
+from qwave.modules.simulator import QuantumSimulator, BACKEND_AER, BACKEND_IONQ_SIMULATOR, BACKEND_IONQ_QPU
 from qwave.modules.generator import AudioGenerator
 from qwave.modules.analyzer import SpectralAnalyzer
 from qwave.modules.optimizer import QuantumOptimizer
@@ -156,6 +156,28 @@ class QWaveGUI:
                                   textvariable=self.num_qubits_var,
                                   command=self.update_num_qubits, width=10)
         qubits_spin.pack(anchor=tk.W, pady=(0, 10))
+
+        # Execution backend
+        backend_frame = ttk.LabelFrame(left_panel, text="Execution Backend", padding="10")
+        backend_frame.pack(fill=tk.X, pady=(0, 10))
+
+        self._backend_labels = {
+            BACKEND_AER: "Local Aer Simulator (Default)",
+            BACKEND_IONQ_SIMULATOR: "IonQ Simulator",
+            BACKEND_IONQ_QPU: "IonQ QPU (Hardware)",
+        }
+        self._backend_label_to_type = {label: key for key, label in self._backend_labels.items()}
+
+        ttk.Label(backend_frame, text="Backend:").pack(anchor=tk.W)
+        self.backend_var = tk.StringVar(value=self._backend_labels[BACKEND_AER])
+        backend_combo = ttk.Combobox(
+            backend_frame,
+            textvariable=self.backend_var,
+            values=list(self._backend_labels.values()),
+            width=28,
+            state="readonly",
+        )
+        backend_combo.pack(anchor=tk.W, pady=(0, 5))
         
         # Audio generation parameters
         audio_frame = ttk.LabelFrame(left_panel, text="Audio Parameters", padding="10")
@@ -442,6 +464,14 @@ class QWaveGUI:
         self.circuit_builder.set_selected_gate(gate_type)
         self.log(f"Selected gate: {gate_type}")
     
+    def _get_selected_backend_type(self) -> str:
+        """Map the UI backend label to an internal backend type."""
+        label = self.backend_var.get()
+        return self._backend_label_to_type.get(label, BACKEND_AER)
+
+    def _get_backend_display_name(self, backend_type: str) -> str:
+        return self._backend_labels.get(backend_type, backend_type)
+
     def update_num_qubits(self):
         """Update the number of qubits in the circuit."""
         num_qubits = self.num_qubits_var.get()
@@ -478,6 +508,20 @@ class QWaveGUI:
                     return
                 
                 # Run simulation
+                backend_type = self._get_selected_backend_type()
+                warning = self.simulator.set_backend_type(backend_type)
+                self.simulator.status_callback = lambda msg: self.root.after(0, self.log, msg)
+
+                if warning:
+                    self.root.after(0, self.log, f"Warning: {warning}")
+                    self.root.after(0, self.log, "Falling back to Local Aer Simulator.")
+
+                effective_backend = self.simulator.get_backend_status()["effective"]
+                self.root.after(
+                    0,
+                    self.log,
+                    f"Execution backend: {self._get_backend_display_name(effective_backend)}",
+                )
                 self.root.after(0, self.log, "Running quantum simulation...")
                 self.simulator.shots = shots
                 self.simulator.load_circuit(circuit)
