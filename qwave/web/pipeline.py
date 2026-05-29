@@ -11,8 +11,15 @@ from scipy.fft import fft, fftfreq
 from scipy.stats import entropy
 
 from qwave.modules.generator import AudioGenerator
-from qwave.utils.backends import BACKEND_AER, BACKEND_IONQ_QPU, BACKEND_IONQ_SIMULATOR, parse_backend_type
+from qwave.utils.backends import (
+    BACKEND_AER,
+    BACKEND_IONQ_QPU,
+    BACKEND_IONQ_SIMULATOR,
+    get_backend_label,
+    parse_backend_type,
+)
 from qwave.web.circuit_json import circuit_from_payload
+from qwave.web.ionq_runner import resolve_ionq_backend, run_ionq_shots
 from qwave.web.simulator_light import simulate_ideal
 
 
@@ -55,6 +62,22 @@ def _fallback_metrics(waveform: np.ndarray, sample_rate: int) -> Dict[str, float
     }
 
 
+def _probability_distribution_from_counts(
+    counts: Dict[str, int],
+    num_qubits: int,
+    shots: int,
+) -> np.ndarray:
+    num_states = 2 ** num_qubits
+    probabilities = np.zeros(num_states)
+    for bitstring, count in counts.items():
+        probabilities[int(bitstring, 2)] = count / shots
+    return probabilities
+
+
+def _measurement_sequence_from_probabilities(probabilities: np.ndarray, shots: int) -> List[int]:
+    return np.random.choice(len(probabilities), size=shots, p=probabilities).tolist()
+
+
 def generate_audio_from_payload(
     payload: Dict[str, Any],
     status_callback: StatusCallback = None,
@@ -69,27 +92,38 @@ def generate_audio_from_payload(
         raise ValueError("Circuit is empty. Add at least one gate before generating audio.")
 
     logs: List[str] = []
-    warning = None
+    warning: Optional[str] = None
 
     def emit(message: str) -> None:
         logs.append(message)
         if status_callback is not None:
             status_callback(message)
 
-    if backend_type in IONQ_BACKENDS:
-        warning = (
-            "IonQ backends are not available in the web deployment yet. "
-            "Using local ideal simulation instead."
-        )
+    effective_type, warning, effective_label = resolve_ionq_backend(backend_type)
+    if warning:
         emit(f"Warning: {warning}")
+        emit("Falling back to Local Ideal Simulator.")
 
-    emit("Execution backend: Local Ideal Simulator")
-    emit("Running quantum simulation...")
-    statevector, measurement_sequence, probability_dist = simulate_ideal(circuit, shots)
+    emit(f"Execution backend: {effective_label}")
+
+    use_ionq = effective_type in IONQ_BACKENDS
+
+    if use_ionq:
+        emit("Computing statevector locally (ideal); measurement shots use IonQ.")
+        statevector, _, _ = simulate_ideal(circuit, shots)
+        emit("Running quantum simulation on IonQ...")
+        counts = run_ionq_shots(circuit, shots, effective_type, status_callback=emit)
+        probability_dist = _probability_distribution_from_counts(counts, circuit.num_qubits, shots)
+        measurement_sequence = _measurement_sequence_from_probabilities(probability_dist, shots)
+    else:
+        emit("Running quantum simulation...")
+        statevector, measurement_sequence, probability_dist = simulate_ideal(circuit, shots)
+
     status = {
         "requested": backend_type,
-        "effective": BACKEND_AER,
-        "effective_label": "Local Ideal Simulator",
+        "effective": effective_type,
+        "requested_label": get_backend_label(backend_type),
+        "effective_label": effective_label,
         "warning": warning,
     }
 

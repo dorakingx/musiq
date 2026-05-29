@@ -2,7 +2,7 @@
   "framework": "nextjs",
   "functions": {
     "api/generate_audio.py": {
-      "maxDuration": 60,
+      "maxDuration": 300,
       "excludeFiles": "{.venv/**,qwave/modules/simulator.py,qwave/gui/**,circuits/**,generated_*/**,**/*.qasm}"
     },
     "api/health.py": {

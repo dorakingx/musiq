@@ -42,8 +42,8 @@ export interface GenerateResult {
 
 export const BACKEND_OPTIONS = [
   { value: "aer_simulator", label: "Local Ideal Simulator (Default)" },
-  { value: "ionq_simulator", label: "IonQ Simulator (desktop app)" },
-  { value: "ionq_qpu", label: "IonQ QPU (desktop app)" },
+  { value: "ionq_simulator", label: "IonQ Simulator" },
+  { value: "ionq_qpu", label: "IonQ QPU (Hardware)" },
 ] as const;
 
 export const GATE_OPTIONS: { type: GateType; label: string }[] = [
