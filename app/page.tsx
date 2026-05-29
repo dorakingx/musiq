@@ -107,7 +107,7 @@ export default function HomePage() {
     return Math.max(4, ...gates.map((gate) => gate.column + 1));
   }, [gates]);
 
-  const gridColumns = Math.max(maxColumn + 4, 16);
+  const gridColumns = Math.max(maxColumn + 2, 6);
   const svgWidth = LEFT_MARGIN + gridColumns * COLUMN_WIDTH + 40;
   const svgHeight = TOP_MARGIN + numQubits * QUBIT_SPACING + 24;
 
