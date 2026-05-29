@@ -4,12 +4,10 @@ from __future__ import annotations
 
 import base64
 import io
+from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional
 
 import numpy as np
-from scipy.fft import fft, fftfreq
-from scipy.stats import entropy
-
 from qwave.modules.generator import AudioGenerator
 from qwave.utils.backends import (
     BACKEND_AER,
@@ -21,6 +19,11 @@ from qwave.utils.backends import (
 from qwave.web.circuit_json import circuit_from_payload
 from qwave.web.ionq_runner import resolve_ionq_backend, run_ionq_shots
 from qwave.web.simulator_light import simulate_ideal
+from qwave.web.spectral_analysis import (
+    analyze_waveform,
+    compute_spectrum_preview,
+    format_analysis_report,
+)
 
 
 StatusCallback = Optional[Callable[[str], None]]
@@ -41,25 +44,6 @@ def _downsample_waveform(waveform: np.ndarray, max_points: int = 2000) -> List[f
         return waveform.astype(float).tolist()
     indices = np.linspace(0, len(waveform) - 1, max_points, dtype=int)
     return waveform[indices].astype(float).tolist()
-
-
-def _fallback_metrics(waveform: np.ndarray, sample_rate: int) -> Dict[str, float]:
-    spectrum = np.abs(fft(waveform))
-    freqs = fftfreq(len(waveform), 1 / sample_rate)
-    positive = freqs >= 0
-    spectrum = spectrum[positive]
-    freqs = freqs[positive]
-    total = float(np.sum(spectrum)) or 1.0
-    centroid = float(np.sum(freqs * spectrum) / total)
-    spread = float(np.sqrt(np.sum(((freqs - centroid) ** 2) * spectrum) / total))
-    normalized = spectrum / total
-    spectral_entropy = float(entropy(normalized + 1e-12))
-    return {
-        "spectral_centroid_hz": centroid,
-        "spectral_bandwidth_hz": spread,
-        "spectral_entropy": spectral_entropy,
-        "non_stationarity_index": float(np.std(waveform)),
-    }
 
 
 def _probability_distribution_from_counts(
@@ -140,15 +124,24 @@ def generate_audio_from_payload(
         apply_reverb=False,
     )
 
-    analysis = _fallback_metrics(waveform, sample_rate)
+    emit("Performing spectral analysis...")
+    prob_for_analysis = probability_dist
+    if hasattr(prob_for_analysis, "tolist"):
+        prob_for_analysis = prob_for_analysis.tolist()
+    analysis = analyze_waveform(waveform, sample_rate, prob_dist=prob_for_analysis)
+    analysis_report = format_analysis_report(analysis)
+    spectrum_preview = compute_spectrum_preview(waveform, sample_rate)
 
     return {
         "audio_base64": _encode_wav_base64(waveform, sample_rate),
         "sample_rate": sample_rate,
         "duration": duration,
         "waveform_preview": _downsample_waveform(waveform),
+        "spectrum_preview": spectrum_preview,
         "analysis": analysis,
+        "analysis_report": analysis_report,
         "backend": status,
         "logs": logs,
         "measurement_outcomes": len(measurement_sequence),
+        "saved_audio_filename": f"qwave_{datetime.now().strftime('%Y%m%d_%H%M%S')}.wav",
     }

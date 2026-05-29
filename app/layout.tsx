@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Musiq — Quantum Circuit Audio Generator",
-  description: "Build quantum circuits and generate non-classical audio patterns in the browser.",
+  title: "Q-Wave: Quantum Circuit Audio Generator",
+  description: "Build quantum circuits and generate non-classical audio patterns.",
   icons: {
     icon: "/musiq_logo.png",
     apple: "/musiq_logo.png",
