@@ -16,6 +16,8 @@ eggs/
 .eggs/
 lib/
 lib64/
+!/lib/
+!/lib/**
 parts/
 sdist/
 var/
@@ -50,3 +52,12 @@ Thumbs.db
 
 # Environment
 .env
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+
+# Python packaging
+qwave.egg-info/
+.vercel

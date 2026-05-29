@@ -15,6 +15,7 @@ from pathlib import Path
 from qwave.modules.simulator import QuantumSimulator
 from qwave.modules.generator import AudioGenerator
 from qwave.modules.analyzer import SpectralAnalyzer
+from qwave.utils.backends import BACKEND_CLI_CHOICES, get_backend_label, parse_backend_type
 
 
 def main():
@@ -29,6 +30,7 @@ Examples:
   python qwave_run.py -c circuits/example_iqp_4q.qasm -o results/q_sound_01.wav
   python qwave_run.py -c my_circuit.qasm -o output.wav -d 3 -shots 4096
   python qwave_run.py -c circuit.qasm -o sound.wav -s 48000 -d 10
+  python qwave_run.py -c circuit.qasm -o sound.wav --backend ionq_simulator
         """
     )
     
@@ -74,6 +76,17 @@ Examples:
         action='store_true',
         help='Skip spectral analysis (faster execution)'
     )
+
+    parser.add_argument(
+        '--backend',
+        type=str,
+        choices=BACKEND_CLI_CHOICES,
+        default='aer_simulator',
+        help=(
+            'Compute resource for quantum execution: '
+            'aer_simulator (local), ionq_simulator, or ionq_qpu (default: aer_simulator)'
+        ),
+    )
     
     args = parser.parse_args()
     
@@ -98,6 +111,8 @@ Examples:
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     
+    backend_type = parse_backend_type(args.backend)
+
     print("=" * 60)
     print("Q-Wave: Quantum Circuit to Audio Generator")
     print("=" * 60)
@@ -106,13 +121,26 @@ Examples:
     print(f"Duration:         {args.duration} seconds")
     print(f"Sample rate:      {args.samplerate} Hz")
     print(f"Measurement shots: {args.shots}")
+    print(f"Compute resource: {get_backend_label(backend_type)}")
     print("=" * 60)
     print()
     
     try:
         # Step 1: Load and simulate quantum circuit
         print("Step 1: Loading quantum circuit...")
-        simulator = QuantumSimulator(shots=args.shots)
+        simulator = QuantumSimulator(shots=args.shots, backend_type=backend_type)
+
+        def status_callback(message: str) -> None:
+            print(f"  [backend] {message}")
+
+        simulator.status_callback = status_callback
+        warning = simulator.set_backend_type(backend_type)
+        if warning:
+            print(f"  Warning: {warning}")
+            print("  Falling back to Local Aer Simulator.")
+        status = simulator.get_backend_status()
+        print(f"  Using compute resource: {status['effective_label']}")
+
         circuit = simulator.load_circuit_from_qasm(args.circuit)
         
         circuit_info = simulator.get_circuit_info()

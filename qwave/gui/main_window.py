@@ -22,7 +22,7 @@ import time
 
 from qwave.gui.circuit_builder import CircuitBuilderWidget
 from qwave.gui.visualization import WaveformPlotter, MultiPanelVisualizer
-from qwave.modules.simulator import QuantumSimulator, BACKEND_AER, BACKEND_IONQ_SIMULATOR, BACKEND_IONQ_QPU
+from qwave.modules.simulator import QuantumSimulator, GenerationCancelledError
 from qwave.modules.generator import AudioGenerator
 from qwave.modules.analyzer import SpectralAnalyzer
 from qwave.modules.optimizer import QuantumOptimizer
@@ -31,6 +31,12 @@ from qwave.utils.constants import (
     SAMPLING_RATE, DEFAULT_DURATION, DEFAULT_SHOTS, DEFAULT_N_QUBITS,
     DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT, DEFAULT_CIRCUIT_BUILDER_QUBITS,
     DEFAULT_OUTPUT_DIR, DEFAULT_GENERATED_AUDIO_DIR
+)
+from qwave.utils.backends import (
+    BACKEND_AER,
+    BACKEND_CHOICES,
+    get_backend_label,
+    parse_backend_type,
 )
 
 
@@ -53,6 +59,7 @@ class QWaveGUI:
         self.latest_waveform = None
         self.latest_sample_rate = None
         self.is_generating = False
+        self._generation_id = 0
         
         # Output directory
         self.output_dir = Path(DEFAULT_GENERATED_AUDIO_DIR)
@@ -157,27 +164,19 @@ class QWaveGUI:
                                   command=self.update_num_qubits, width=10)
         qubits_spin.pack(anchor=tk.W, pady=(0, 10))
 
-        # Execution backend
-        backend_frame = ttk.LabelFrame(left_panel, text="Execution Backend", padding="10")
+        # Execution backend (compute resource)
+        backend_frame = ttk.LabelFrame(left_panel, text="Compute Resource", padding="10")
         backend_frame.pack(fill=tk.X, pady=(0, 10))
 
-        self._backend_labels = {
-            BACKEND_AER: "Local Aer Simulator (Default)",
-            BACKEND_IONQ_SIMULATOR: "IonQ Simulator",
-            BACKEND_IONQ_QPU: "IonQ QPU (Hardware)",
-        }
-        self._backend_label_to_type = {label: key for key, label in self._backend_labels.items()}
-
-        ttk.Label(backend_frame, text="Backend:").pack(anchor=tk.W)
-        self.backend_var = tk.StringVar(value=self._backend_labels[BACKEND_AER])
-        backend_combo = ttk.Combobox(
-            backend_frame,
-            textvariable=self.backend_var,
-            values=list(self._backend_labels.values()),
-            width=28,
-            state="readonly",
-        )
-        backend_combo.pack(anchor=tk.W, pady=(0, 5))
+        self.backend_type_var = tk.StringVar(value=BACKEND_AER)
+        for backend_key, label in BACKEND_CHOICES:
+            ttk.Radiobutton(
+                backend_frame,
+                text=label,
+                variable=self.backend_type_var,
+                value=backend_key,
+                command=self.on_backend_selected,
+            ).pack(anchor=tk.W, pady=2)
         
         # Audio generation parameters
         audio_frame = ttk.LabelFrame(left_panel, text="Audio Parameters", padding="10")
@@ -465,12 +464,55 @@ class QWaveGUI:
         self.log(f"Selected gate: {gate_type}")
     
     def _get_selected_backend_type(self) -> str:
-        """Map the UI backend label to an internal backend type."""
-        label = self.backend_var.get()
-        return self._backend_label_to_type.get(label, BACKEND_AER)
+        """Return the compute resource selected in the control panel."""
+        return parse_backend_type(self.backend_type_var.get())
 
-    def _get_backend_display_name(self, backend_type: str) -> str:
-        return self._backend_labels.get(backend_type, backend_type)
+    def _cancel_active_generation(self, reason: str) -> None:
+        """Stop an in-flight generation so a new run can start."""
+        if not self.is_generating:
+            return
+
+        self._generation_id += 1
+        self.simulator.request_cancel()
+        self.is_generating = False
+        self.log(f"Cancelled ongoing generation: {reason}")
+        self.set_status("Ready")
+
+    def _is_generation_active(self, generation_id: int) -> bool:
+        return generation_id == self._generation_id
+
+    def _finish_generation(self, generation_id: int) -> None:
+        def finish():
+            if generation_id == self._generation_id:
+                self.is_generating = False
+
+        self.root.after(0, finish)
+
+    def on_backend_selected(self):
+        """Handle compute resource selection."""
+        backend_type = self._get_selected_backend_type()
+        label = get_backend_label(backend_type)
+        if self.is_generating:
+            self._cancel_active_generation(f"Compute resource changed to {label}")
+        self.set_status(f"Compute resource: {label}")
+        self.log(f"Selected compute resource: {label}")
+
+    def _apply_simulator_backend(self) -> None:
+        """Apply the selected compute resource to the simulator and log status."""
+        backend_type = self._get_selected_backend_type()
+        warning = self.simulator.set_backend_type(backend_type)
+        self.simulator.status_callback = lambda msg: self.root.after(0, self.log, msg)
+
+        if warning:
+            self.root.after(0, self.log, f"Warning: {warning}")
+            self.root.after(0, self.log, "Falling back to Local Aer Simulator.")
+
+        status = self.simulator.get_backend_status()
+        self.root.after(
+            0,
+            self.log,
+            f"Execution backend: {status['effective_label']}",
+        )
 
     def update_num_qubits(self):
         """Update the number of qubits in the circuit."""
@@ -486,8 +528,10 @@ class QWaveGUI:
     def generate_audio(self):
         """Generate audio from the quantum circuit in a separate thread."""
         if self.is_generating:
-            messagebox.showinfo("Busy", "Audio generation is already in progress.")
-            return
+            self._cancel_active_generation("Starting a new generation")
+
+        self._generation_id += 1
+        generation_id = self._generation_id
         self.is_generating = True
         
         def generate():
@@ -507,27 +551,24 @@ class QWaveGUI:
                                   "Empty Circuit", "Please add gates to the circuit first.")
                     return
                 
+                if not self._is_generation_active(generation_id):
+                    return
+
                 # Run simulation
-                backend_type = self._get_selected_backend_type()
-                warning = self.simulator.set_backend_type(backend_type)
-                self.simulator.status_callback = lambda msg: self.root.after(0, self.log, msg)
-
-                if warning:
-                    self.root.after(0, self.log, f"Warning: {warning}")
-                    self.root.after(0, self.log, "Falling back to Local Aer Simulator.")
-
-                effective_backend = self.simulator.get_backend_status()["effective"]
-                self.root.after(
-                    0,
-                    self.log,
-                    f"Execution backend: {self._get_backend_display_name(effective_backend)}",
-                )
+                self._apply_simulator_backend()
                 self.root.after(0, self.log, "Running quantum simulation...")
                 self.simulator.shots = shots
                 self.simulator.load_circuit(circuit)
                 statevector = self.simulator.get_statevector()
+
+                if not self._is_generation_active(generation_id):
+                    return
+
                 measurement_sequence = self.simulator.get_measurement_sequence()
                 probability_dist = self.simulator.get_probability_distribution()
+
+                if not self._is_generation_active(generation_id):
+                    return
                 
                 self.root.after(0, self.log, f"Simulation completed: {len(measurement_sequence)} outcomes")
                 
@@ -542,6 +583,9 @@ class QWaveGUI:
                     apply_envelope=True,
                     apply_reverb=False
                 )
+
+                if not self._is_generation_active(generation_id):
+                    return
                 
                 # Save to output directory
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -574,13 +618,17 @@ class QWaveGUI:
                 self.root.after(0, self.log, f"Audio saved to: {filename}")
                 self.root.after(0, self.log, f"Waveform PNG saved to: {waveform_png}")
                 
+            except GenerationCancelledError:
+                if self._is_generation_active(generation_id):
+                    self.root.after(0, self.log, "Generation cancelled.")
+                    self.root.after(0, self.set_status, "Ready")
             except Exception as e:
+                if not self._is_generation_active(generation_id):
+                    return
                 self.root.after(0, messagebox.showerror, "Error", f"Failed to generate audio: {str(e)}")
                 self.root.after(0, self.log, f"Error: {str(e)}")
             finally:
-                def finish():
-                    self.is_generating = False
-                self.root.after(0, finish)
+                self._finish_generation(generation_id)
         
         thread = threading.Thread(target=generate, daemon=True)
         thread.start()
@@ -588,8 +636,10 @@ class QWaveGUI:
     def generate_waveform_tab(self):
         """Generate waveform from Waveform Generation tab."""
         if self.is_generating:
-            messagebox.showinfo("Busy", "Audio generation is already in progress.")
-            return
+            self._cancel_active_generation("Starting a new generation")
+
+        self._generation_id += 1
+        generation_id = self._generation_id
         self.is_generating = True
         
         def generate():
@@ -615,12 +665,23 @@ class QWaveGUI:
                     circuit.measure_all()
                     interference_mode = False
                 
+                if not self._is_generation_active(generation_id):
+                    return
+
                 # Simulate
+                self._apply_simulator_backend()
                 self.simulator.shots = shots
                 self.simulator.load_circuit(circuit)
                 statevector = self.simulator.get_statevector()
+
+                if not self._is_generation_active(generation_id):
+                    return
+
                 measurement_sequence = self.simulator.get_measurement_sequence()
                 probability_dist = self.simulator.get_probability_distribution()
+
+                if not self._is_generation_active(generation_id):
+                    return
                 
                 # Generate audio
                 self.generator.sample_rate = SAMPLING_RATE
@@ -650,12 +711,16 @@ class QWaveGUI:
                 
                 self.root.after(0, self.set_status, "Waveform generated successfully")
                 
+            except GenerationCancelledError:
+                if self._is_generation_active(generation_id):
+                    self.root.after(0, self.log, "Generation cancelled.")
+                    self.root.after(0, self.set_status, "Ready")
             except Exception as e:
+                if not self._is_generation_active(generation_id):
+                    return
                 self.root.after(0, messagebox.showerror, "Error", f"Failed to generate waveform: {str(e)}")
             finally:
-                def finish():
-                    self.is_generating = False
-                self.root.after(0, finish)
+                self._finish_generation(generation_id)
         
         thread = threading.Thread(target=generate, daemon=True)
         thread.start()

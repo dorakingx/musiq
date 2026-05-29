@@ -11,23 +11,31 @@ Supports local Aer simulation and remote execution via the IonQ provider.
 
 import logging
 import os
+import time
 from typing import Any, Callable, Dict, List, Optional
 
 import numpy as np
-from dotenv import load_dotenv
 from qiskit import ClassicalRegister, QuantumCircuit, transpile
 from qiskit.transpiler import CouplingMap
 from qiskit_aer import Aer, AerSimulator
 from qiskit_aer.noise import NoiseModel, depolarizing_error
 from qiskit_ionq import IonQProvider
 
-load_dotenv()
+from qwave.utils.backends import (
+    BACKEND_AER,
+    BACKEND_IONQ_QPU,
+    BACKEND_IONQ_SIMULATOR,
+    get_backend_label,
+)
 
 logger = logging.getLogger(__name__)
 
-BACKEND_AER = "aer_simulator"
-BACKEND_IONQ_SIMULATOR = "ionq_simulator"
-BACKEND_IONQ_QPU = "ionq_qpu"
+IONQ_TERMINAL_STATUSES = {"DONE", "ERROR", "CANCELLED"}
+
+
+class GenerationCancelledError(RuntimeError):
+    """Raised when an in-flight simulation is cancelled by the user."""
+
 
 IONQ_BACKEND_NAMES = {
     BACKEND_IONQ_SIMULATOR: ("simulator", "ionq_simulator"),
@@ -101,6 +109,8 @@ class QuantumSimulator:
         self.backend_fallback_warning: Optional[str] = None
         self._ionq_provider: Optional[IonQProvider] = None
         self._using_ionq = False
+        self._cancel_requested = False
+        self._active_ionq_job = None
 
         self.aer_backend = Aer.get_backend("qasm_simulator")
         self.statevector_backend = Aer.get_backend("statevector_simulator")
@@ -179,11 +189,12 @@ class QuantumSimulator:
 
     def get_backend_status(self) -> Dict[str, Optional[str]]:
         """Return requested/effective backend info for UI display."""
-        effective = "ionq" if self._using_ionq else BACKEND_AER
+        effective = self.backend_type if self._using_ionq else BACKEND_AER
         return {
             "requested": self.requested_backend_type,
-            "effective": self.backend_type if self._using_ionq else BACKEND_AER,
-            "effective_label": effective,
+            "effective": effective,
+            "requested_label": get_backend_label(self.requested_backend_type),
+            "effective_label": get_backend_label(effective),
             "warning": self.backend_fallback_warning,
         }
 
@@ -197,27 +208,76 @@ class QuantumSimulator:
             normalized[key] = normalized.get(key, 0) + count
         return normalized
 
+    def clear_cancel(self) -> None:
+        self._cancel_requested = False
+
+    def request_cancel(self) -> None:
+        """Request cancellation of an in-flight simulation (e.g. queued IonQ job)."""
+        self._cancel_requested = True
+        job = self._active_ionq_job
+        if job is None or not self._using_ionq:
+            return
+
+        job_id = job.job_id()
+        try:
+            self.backend.cancel_job(job_id)
+            self._emit_status(f"IonQ job {job_id}: cancellation requested.")
+        except Exception as exc:
+            logger.warning("Failed to cancel IonQ job %s: %s", job_id, exc)
+
+    def _raise_if_cancelled(self) -> None:
+        if self._cancel_requested:
+            raise GenerationCancelledError("Quantum simulation was cancelled.")
+
+    def _ionq_status_name(self, job_status) -> str:
+        status_str = str(job_status)
+        if "." in status_str:
+            return status_str.rsplit(".", 1)[-1]
+        return status_str
+
     def _execute_ionq_simulation(self, shot_circuit: QuantumCircuit) -> Dict[str, int]:
+        self.clear_cancel()
         job = self.backend.run(shot_circuit, shots=self.shots)
+        self._active_ionq_job = job
         job_id = job.job_id()
         self._emit_status(f"IonQ job submitted: {job_id}")
 
         last_status = None
+        final_status_name = None
+        poll_interval_seconds = 5
 
-        def status_callback(job_id_cb, job_status, _job):
-            nonlocal last_status
-            status_str = str(job_status)
-            if status_str != last_status:
-                last_status = status_str
-                self._emit_status(f"IonQ job {job_id_cb}: {status_str}")
+        try:
+            while True:
+                self._raise_if_cancelled()
+                job_status = job.status()
+                status_name = self._ionq_status_name(job_status)
+                if status_name != last_status:
+                    last_status = status_name
+                    self._emit_status(f"IonQ job {job_id}: {job_status}")
 
-        result = job.result(callback=status_callback, wait=5)
-        counts = result.get_counts()
-        if isinstance(counts, list):
-            counts = counts[0]
-        self.measurement_results = self._normalize_counts(counts)
-        self._emit_status(f"IonQ job {job_id} completed.")
-        return self.measurement_results
+                if status_name in IONQ_TERMINAL_STATUSES:
+                    final_status_name = status_name
+                    break
+
+                time.sleep(poll_interval_seconds)
+
+            self._raise_if_cancelled()
+
+            if final_status_name == "CANCELLED":
+                raise GenerationCancelledError(f"IonQ job {job_id} was cancelled.")
+            if final_status_name == "ERROR":
+                raise RuntimeError(f"IonQ job {job_id} failed with status {last_status}.")
+
+            result = job.result()
+            counts = result.get_counts()
+            if isinstance(counts, list):
+                counts = counts[0]
+            self.measurement_results = self._normalize_counts(counts)
+            self._emit_status(f"IonQ job {job_id} completed.")
+            return self.measurement_results
+        finally:
+            self._active_ionq_job = None
+            self.clear_cancel()
 
     def _circuit_for_shots(self) -> QuantumCircuit:
         """
@@ -326,6 +386,7 @@ class QuantumSimulator:
             return self._execute_ionq_simulation(shot_circuit)
 
         job = self.backend.run(shot_circuit, shots=self.shots)
+        self._raise_if_cancelled()
         result = job.result()
         self.measurement_results = self._normalize_counts(result.get_counts())
         return self.measurement_results
