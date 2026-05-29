@@ -491,10 +491,15 @@ select {
     color 0.2s;
 }
 
-.btn-ghost:hover {
+.btn-ghost:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.06);
   border-color: var(--border-bright);
   color: var(--text);
+}
+
+.btn-ghost:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .btn-ghost--wide {

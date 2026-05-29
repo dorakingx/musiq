@@ -364,22 +364,9 @@ export default function HomePage() {
         return nextUrl;
       });
 
-      downloadBlob(blob, nextResult.saved_audio_filename);
-      appendLog(`Audio saved to: ${nextResult.saved_audio_filename}`);
-
-      requestAnimationFrame(() => {
-        const canvas = timeCanvasRef.current;
-        if (!canvas) return;
-        canvas.toBlob((pngBlob) => {
-          if (!pngBlob) return;
-          const pngName = nextResult.saved_audio_filename.replace(".wav", ".png");
-          downloadBlob(pngBlob, pngName);
-          appendLog(`Waveform PNG saved to: ${pngName}`);
-        }, "image/png");
-      });
-
       setPlaybackTime(null);
       setStatus("Audio generated successfully!");
+      appendLog("Audio ready for playback. Use Save WAV to download when you want.");
     } catch (error) {
       if (generationId !== generationIdRef.current) return;
       if (error instanceof DOMException && error.name === "AbortError") {
@@ -635,7 +622,13 @@ export default function HomePage() {
             <button className="btn-ghost" type="button" onClick={stopAudio}>
               ■ Stop
             </button>
-            <button className="btn-ghost" type="button" onClick={saveAudio}>
+            <button
+              className="btn-ghost"
+              type="button"
+              onClick={saveAudio}
+              disabled={!result?.audio_base64}
+              title={result?.audio_base64 ? "Download the generated WAV" : "Generate audio first"}
+            >
               Save WAV
             </button>
             <button
