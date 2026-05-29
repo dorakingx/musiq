@@ -23,6 +23,27 @@ const QUBIT_SPACING = 56;
 const LEFT_MARGIN = 50;
 const TOP_MARGIN = 30;
 
+const CIRCUIT = {
+  gridEven: "rgba(255, 255, 255, 0.07)",
+  gridOdd: "rgba(255, 255, 255, 0.03)",
+  columnLabel: "#6b7694",
+  qubitLabel: "#a8b4d4",
+  qubitLine: "#3d4668",
+  gateFill: "#12151f",
+};
+
+const GATE_SHORT_NAMES: Record<GateType, string> = {
+  H: "Hadamard",
+  X: "Pauli-X",
+  Y: "Pauli-Y",
+  Z: "Pauli-Z",
+  T: "Phase",
+  S: "Phase",
+  CNOT: "Entangle",
+  CZ: "Ctrl-Z",
+  M: "Measure",
+};
+
 function base64ToBlob(base64: string, mimeType: string) {
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
@@ -447,38 +468,66 @@ export default function HomePage() {
 
   return (
     <main className="app-shell">
-      <header className="app-title">
-        <img src="/musiq_logo.png" alt="Musiq logo" width={40} height={40} />
-        <h1>Q-Wave: Quantum Circuit Audio Generator</h1>
+      <header className="hero">
+        <div className="hero__brand">
+          <div className="hero__logo-wrap">
+            <img src="/musiq_logo.png" alt="Musiq" width={52} height={52} />
+          </div>
+          <div className="hero__titles">
+            <h1>Musiq</h1>
+            <p className="hero__tagline">
+              Quantum circuits meet sonic sculpture — compose interference, render waveforms,
+              listen to the non-classical.
+            </p>
+          </div>
+        </div>
+        <div className="hero__status">
+          <span
+            className={`hero__status-dot ${isGenerating ? "hero__status-dot--busy" : ""}`}
+          />
+          <span>{status}</span>
+        </div>
       </header>
 
       <div className="grid">
         <section className="panel stack left-panel">
-          <fieldset className="fieldset">
-            <legend>Quantum Gates</legend>
-            <div className="radio-list gate-radios">
+          <div className="card">
+            <div className="card__head">
+              <h3 className="card__title">Quantum Gates</h3>
+              <span className="card__accent" />
+            </div>
+            <div className="gate-palette">
               {GATE_OPTIONS.map((gate) => (
-                <label key={gate.type} className="radio-item">
-                  <input
-                    type="radio"
-                    name="gate"
-                    value={gate.type}
-                    checked={selectedGate === gate.type}
-                    onChange={() => onGateSelected(gate.type)}
-                  />
-                  <span>{gate.label}</span>
-                </label>
+                <button
+                  key={gate.type}
+                  type="button"
+                  className={`gate-chip ${selectedGate === gate.type ? "gate-chip--active" : ""}`}
+                  style={{ "--gate-color": GATE_COLORS[gate.type] } as React.CSSProperties}
+                  onClick={() => onGateSelected(gate.type)}
+                  title={gate.label}
+                >
+                  <span className="gate-chip__symbol">{gate.type}</span>
+                  <span className="gate-chip__name">{GATE_SHORT_NAMES[gate.type]}</span>
+                </button>
               ))}
             </div>
-            <button className="secondary-btn" type="button" onClick={clearCircuit}>
-              Clear Circuit
+            <button
+              className="btn-ghost btn-ghost--wide"
+              type="button"
+              onClick={clearCircuit}
+              style={{ marginTop: 12 }}
+            >
+              Clear circuit
             </button>
-          </fieldset>
+          </div>
 
-          <fieldset className="fieldset">
-            <legend>Circuit Parameters</legend>
+          <div className="card">
+            <div className="card__head">
+              <h3 className="card__title">Circuit</h3>
+              <span className="card__accent" />
+            </div>
             <div className="field">
-              <label htmlFor="num-qubits">Number of Qubits:</label>
+              <label htmlFor="num-qubits">Qubits</label>
               <input
                 id="num-qubits"
                 type="number"
@@ -500,13 +549,16 @@ export default function HomePage() {
                 }}
               />
             </div>
-          </fieldset>
+          </div>
 
-          <fieldset className="fieldset">
-            <legend>Compute Resource</legend>
-            <div className="radio-list">
+          <div className="card">
+            <div className="card__head">
+              <h3 className="card__title">Compute</h3>
+              <span className="card__accent" />
+            </div>
+            <div className="backend-list">
               {BACKEND_OPTIONS.map((option) => (
-                <label key={option.value} className="radio-item">
+                <label key={option.value} className="backend-option">
                   <input
                     type="radio"
                     name="backend"
@@ -514,81 +566,87 @@ export default function HomePage() {
                     checked={backend === option.value}
                     onChange={() => handleBackendChange(option.value)}
                   />
-                  <span>{option.label}</span>
+                  <span className="backend-option__body">{option.label}</span>
                 </label>
               ))}
             </div>
-          </fieldset>
+          </div>
 
-          <fieldset className="fieldset">
-            <legend>Audio Parameters</legend>
-            <div className="field">
-              <label htmlFor="duration">Duration (seconds):</label>
-              <input
-                id="duration"
-                type="number"
-                min={MIN_DURATION}
-                max={MAX_DURATION}
-                step={0.5}
-                value={duration}
-                onChange={(event) => setDuration(Number(event.target.value))}
-              />
+          <div className="card">
+            <div className="card__head">
+              <h3 className="card__title">Audio</h3>
+              <span className="card__accent" />
             </div>
-            <div className="field">
-              <label htmlFor="sample-rate">Sample Rate (Hz):</label>
-              <select
-                id="sample-rate"
-                value={sampleRate}
-                onChange={(event) => setSampleRate(Number(event.target.value))}
-              >
-                {SAMPLE_RATES.map((rate) => (
-                  <option key={rate} value={rate}>
-                    {rate}
-                  </option>
-                ))}
-              </select>
+            <div className="field-grid">
+              <div className="field">
+                <label htmlFor="duration">Duration (s)</label>
+                <input
+                  id="duration"
+                  type="number"
+                  min={MIN_DURATION}
+                  max={MAX_DURATION}
+                  step={0.5}
+                  value={duration}
+                  onChange={(event) => setDuration(Number(event.target.value))}
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="sample-rate">Sample rate</label>
+                <select
+                  id="sample-rate"
+                  value={sampleRate}
+                  onChange={(event) => setSampleRate(Number(event.target.value))}
+                >
+                  {SAMPLE_RATES.map((rate) => (
+                    <option key={rate} value={rate}>
+                      {rate.toLocaleString()} Hz
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="field">
+                <label htmlFor="shots">Shots</label>
+                <input
+                  id="shots"
+                  type="number"
+                  min={MIN_SHOTS}
+                  max={MAX_SHOTS}
+                  step={128}
+                  value={shots}
+                  onChange={(event) => setShots(Number(event.target.value))}
+                />
+              </div>
             </div>
-            <div className="field">
-              <label htmlFor="shots">Measurement Shots:</label>
-              <input
-                id="shots"
-                type="number"
-                min={MIN_SHOTS}
-                max={MAX_SHOTS}
-                step={128}
-                value={shots}
-                onChange={(event) => setShots(Number(event.target.value))}
-              />
-            </div>
-          </fieldset>
+          </div>
 
-          <div className="control-buttons">
+          <button
+            className={`btn-generate ${isGenerating ? "btn-generate--loading" : ""}`}
+            type="button"
+            disabled={isGenerating}
+            onClick={generateAudio}
+          >
+            {isGenerating ? "Synthesizing…" : "Generate audio"}
+          </button>
+
+          <div className="transport-row">
+            <button className="btn-ghost btn-ghost--accent" type="button" onClick={playAudio}>
+              ▶ Play
+            </button>
+            <button className="btn-ghost" type="button" onClick={stopAudio}>
+              ■ Stop
+            </button>
+            <button className="btn-ghost" type="button" onClick={saveAudio}>
+              Save WAV
+            </button>
             <button
-              className="primary-btn"
-              type="button"
-              disabled={isGenerating}
-              onClick={generateAudio}
-            >
-              {isGenerating ? "Generating..." : "Generate Audio"}
-            </button>
-            <button className="secondary-btn" type="button" onClick={playAudio}>
-              Play Audio
-            </button>
-            <button className="secondary-btn" type="button" onClick={stopAudio}>
-              Stop Audio
-            </button>
-            <button className="secondary-btn" type="button" onClick={saveAudio}>
-              Save Audio
-            </button>
-            <button
-              className="secondary-btn"
+              className="btn-ghost"
               type="button"
               onClick={() => qasmInputRef.current?.click()}
             >
-              Load Circuit
+              Load QASM
             </button>
-            <button className="secondary-btn" type="button" onClick={saveCircuit}>
-              Save Circuit
+            <button className="btn-ghost btn-ghost--wide" type="button" onClick={saveCircuit}>
+              Export circuit
             </button>
             <input
               ref={qasmInputRef}
@@ -618,9 +676,14 @@ export default function HomePage() {
         </section>
 
         <section className="panel stack center-panel">
-          <h2 className="section-label">Quantum Circuit Builder</h2>
-          <p className="hint">Click to place the selected gate. Click again on the same gate to remove.</p>
-          <div className="circuit-board circuit-board-light">
+          <div className="panel-header">
+            <h2>Circuit canvas</h2>
+            <p className="hint">
+              Paint gates on the lattice. Tap the same cell again to erase — sculpt your
+              quantum score before you listen.
+            </p>
+          </div>
+          <div className="circuit-board">
             <svg
               className="circuit-svg"
               width={svgWidth}
@@ -629,6 +692,16 @@ export default function HomePage() {
               onMouseMove={handleCircuitMove}
               onMouseLeave={() => setHoverCell(null)}
             >
+              <defs>
+                <filter id="gate-glow" x="-50%" y="-50%" width="200%" height="200%">
+                  <feGaussianBlur stdDeviation="2" result="blur" />
+                  <feMerge>
+                    <feMergeNode in="blur" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
+              </defs>
+
               {Array.from({ length: gridColumns + 1 }).map((_, col) => {
                 const x = LEFT_MARGIN + col * COLUMN_WIDTH;
                 const gridTop = TOP_MARGIN / 2;
@@ -640,12 +713,19 @@ export default function HomePage() {
                       y1={gridTop}
                       x2={x}
                       y2={gridBottom}
-                      stroke={col % 2 === 0 ? "#e0e0e0" : "#f0f0f0"}
+                      stroke={col % 2 === 0 ? CIRCUIT.gridEven : CIRCUIT.gridOdd}
                       strokeWidth={1}
                       strokeDasharray="2 4"
                     />
                     {col % 2 === 0 ? (
-                      <text x={x} y={12} fill="#555" fontSize="8" textAnchor="middle">
+                      <text
+                        x={x}
+                        y={14}
+                        fill={CIRCUIT.columnLabel}
+                        fontSize="9"
+                        textAnchor="middle"
+                        fontFamily="var(--font-mono)"
+                      >
                         {col}
                       </text>
                     ) : null}
@@ -657,13 +737,19 @@ export default function HomePage() {
                 const y = TOP_MARGIN + qubit * QUBIT_SPACING + QUBIT_SPACING / 2;
                 return (
                   <g key={`qubit-${qubit}`}>
-                    <text x={10} y={y + 4} fill="#333" fontSize="12">{`q[${qubit}]`}</text>
+                    <text
+                      x={10}
+                      y={y + 4}
+                      fill={CIRCUIT.qubitLabel}
+                      fontSize="11"
+                      fontFamily="var(--font-mono)"
+                    >{`q${qubit}`}</text>
                     <line
                       x1={LEFT_MARGIN}
                       y1={y}
                       x2={svgWidth - 20}
                       y2={y}
-                      stroke="#888"
+                      stroke={CIRCUIT.qubitLine}
                       strokeWidth={2}
                     />
                   </g>
@@ -738,9 +824,9 @@ export default function HomePage() {
                   const color = GATE_COLORS[gate.type];
                   return (
                     <g key={`${gate.type}-${gate.column}-${index}`}>
-                      <line x1={x} y1={controlY} x2={x} y2={targetY} stroke={color} strokeWidth={2} />
-                      <circle cx={x} cy={controlY} r={8} fill="white" stroke={color} strokeWidth={2} />
-                      <circle cx={x} cy={targetY} r={8} fill="white" stroke={color} strokeWidth={2} />
+                      <line x1={x} y1={controlY} x2={x} y2={targetY} stroke={color} strokeWidth={2} filter="url(#gate-glow)" />
+                      <circle cx={x} cy={controlY} r={8} fill={CIRCUIT.gateFill} stroke={color} strokeWidth={2} />
+                      <circle cx={x} cy={targetY} r={8} fill={CIRCUIT.gateFill} stroke={color} strokeWidth={2} />
                       {gate.type === "CNOT" ? (
                         <>
                           <line x1={x - 8} y1={targetY} x2={x + 8} y2={targetY} stroke={color} />
@@ -760,12 +846,21 @@ export default function HomePage() {
                       y={y - 16}
                       width={36}
                       height={32}
-                      rx={4}
-                      fill="white"
+                      rx={6}
+                      fill={CIRCUIT.gateFill}
                       stroke={color}
                       strokeWidth={2}
+                      filter="url(#gate-glow)"
                     />
-                    <text x={x} y={y + 5} textAnchor="middle" fill={color} fontSize="13" fontWeight="700">
+                    <text
+                      x={x}
+                      y={y + 5}
+                      textAnchor="middle"
+                      fill={color}
+                      fontSize="13"
+                      fontWeight="700"
+                      fontFamily="var(--font-display)"
+                    >
                       {gate.type}
                     </text>
                   </g>
@@ -774,32 +869,44 @@ export default function HomePage() {
             </svg>
           </div>
 
-          <fieldset className="fieldset waveform-fieldset">
-            <legend>Waveform</legend>
+          <div className="card">
+            <div className="card__head">
+              <h3 className="card__title">Output</h3>
+              <span className="card__accent" />
+            </div>
             <div className="waveform-stack">
-              <div className="waveform-box waveform-box-light">
+              <div className="waveform-box">
                 <canvas ref={timeCanvasRef} className="waveform-canvas" />
               </div>
-              <div className="waveform-box waveform-box-light">
+              <div className="waveform-box">
                 <canvas ref={spectrumCanvasRef} className="waveform-canvas" />
               </div>
             </div>
-          </fieldset>
+          </div>
         </section>
 
         <section className="panel stack right-panel">
-          <fieldset className="fieldset">
-            <legend>Spectral Analysis Metrics</legend>
+          <div className="card">
+            <div className="card__head">
+              <h3 className="card__title">Spectral analysis</h3>
+              <span className="card__accent" />
+            </div>
             <div className="metrics-box">{metricsText}</div>
-          </fieldset>
-          <fieldset className="fieldset">
-            <legend>Log</legend>
-            <div className="log-box">{logs.join("\n") || "Logs will appear here."}</div>
-          </fieldset>
+          </div>
+          <div className="card">
+            <div className="card__head">
+              <h3 className="card__title">Session log</h3>
+              <span className="card__accent" />
+            </div>
+            <div className="log-box">{logs.join("\n") || "Your studio session log appears here."}</div>
+          </div>
         </section>
       </div>
 
-      <div className="status-bar status-bar-sunken">{status}</div>
+      <footer className="status-footer">
+        <span className="status-footer__label">Status</span>
+        <span className="status-footer__message">{status}</span>
+      </footer>
     </main>
   );
 }
