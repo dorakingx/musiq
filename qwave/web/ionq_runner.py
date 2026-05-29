@@ -142,13 +142,13 @@ def resolve_ionq_backend(
         effective backend type, optional fallback warning, effective label
     """
     if backend_type not in (BACKEND_IONQ_SIMULATOR, BACKEND_IONQ_QPU):
-        return backend_type, None, get_backend_label(backend_type)
+        return backend_type, None, get_backend_label(backend_type, web=True)
 
     if not os.getenv("IONQ_API_KEY"):
         warning = (
             "IONQ_API_KEY not found. Set it in Vercel Environment Variables "
             "or a local .env file."
         )
-        return BACKEND_AER, warning, get_backend_label(BACKEND_AER)
+        return BACKEND_AER, warning, get_backend_label(BACKEND_AER, web=True)
 
-    return backend_type, None, get_backend_label(backend_type)
+    return backend_type, None, get_backend_label(backend_type, web=True)

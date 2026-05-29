@@ -106,7 +106,7 @@ def generate_audio_from_payload(
     status = {
         "requested": backend_type,
         "effective": effective_type,
-        "requested_label": get_backend_label(backend_type),
+        "requested_label": get_backend_label(backend_type, web=True),
         "effective_label": effective_label,
         "warning": warning,
     }
