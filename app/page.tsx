@@ -144,12 +144,12 @@ export default function HomePage() {
     [qasmText],
   );
 
-  const effectiveQubitCount =
-    editorMode === "qasm" && qasmQubitCount !== null ? qasmQubitCount : numQubits;
+  const inferredQubitCount =
+    qasmText.trim() && qasmQubitCount !== null ? qasmQubitCount : numQubits;
 
-  const visualViewAllowed = canUseVisualView(
-    qasmQubitCount !== null && editorMode === "qasm" ? qasmQubitCount : numQubits,
-  );
+  const effectiveQubitCount = inferredQubitCount;
+
+  const visualViewAllowed = canUseVisualView(inferredQubitCount);
 
   const qasmLineCount = useMemo(() => countQasmLines(qasmText), [qasmText]);
 
@@ -352,24 +352,25 @@ export default function HomePage() {
 
         setQasmText(qasm);
         setActiveTemplateId(filename.replace(/\.qasm$/, ""));
-        setEditorMode("qasm");
-        setStatus(`Template loaded: ${label}`);
-        appendLog(`Loaded template: ${label}`);
 
         if (canUseVisualView(numTemplateQubits)) {
           try {
             await importQasmToVisual(qasm);
-            appendLog("Visual canvas updated from template.");
+            appendLog(`Loaded template: ${label} (visual canvas updated).`);
           } catch {
             setGates([]);
-            appendLog("Visual import skipped (QASM is still available in Code view).");
+            appendLog(
+              `Loaded template: ${label} (QASM stored — open Code view to edit raw QASM).`,
+            );
           }
         } else {
           setGates([]);
           appendLog(
-            `Visual view disabled for ${numTemplateQubits} qubits — edit in Code (QASM) view.`,
+            `Loaded template: ${label} (${numTemplateQubits}Q, visual canvas unavailable).`,
           );
         }
+
+        setStatus(`Template loaded: ${label}`);
 
         if (numTemplateQubits >= LARGE_CIRCUIT_QUBIT_WARNING) {
           appendLog(
@@ -949,10 +950,10 @@ export default function HomePage() {
                 role="tab"
                 aria-selected={editorMode === "visual"}
                 className={`editor-tab ${editorMode === "visual" ? "editor-tab--active" : ""}`}
-                disabled={!visualViewAllowed && qasmQubitCount !== null}
+                disabled={!visualViewAllowed && qasmText.trim().length > 0}
                 title={
-                  !visualViewAllowed && qasmQubitCount !== null
-                    ? `Circuit has ${qasmQubitCount} qubits; visual editor supports up to ${MAX_QUBITS}`
+                  !visualViewAllowed && qasmText.trim().length > 0
+                    ? `Circuit has ${inferredQubitCount} qubits; visual editor supports up to ${MAX_QUBITS}`
                     : "Drag-and-drop gate canvas"
                 }
                 onClick={() => void switchEditorMode("visual")}
