@@ -121,6 +121,7 @@ for (const name of fs.readdirSync(SOURCE_DIR)) {
     num_qubits: numQubits,
     file_size_bytes: size,
     loadable,
+    visual_preview: !stem.startsWith("quantum_walk"),
   });
 }
 

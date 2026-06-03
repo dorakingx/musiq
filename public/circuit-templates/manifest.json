@@ -7,7 +7,8 @@
       "label": "Bell State (2Q)",
       "num_qubits": 2,
       "file_size_bytes": 69,
-      "loadable": true
+      "loadable": true,
+      "visual_preview": true
     },
     {
       "id": "ghz_3q",
@@ -15,7 +16,8 @@
       "label": "GHZ State (3Q)",
       "num_qubits": 3,
       "file_size_bytes": 83,
-      "loadable": true
+      "loadable": true,
+      "visual_preview": true
     },
     {
       "id": "simple_entangled_3q",
@@ -23,7 +25,8 @@
       "label": "Simple Entangled (3Q)",
       "num_qubits": 3,
       "file_size_bytes": 115,
-      "loadable": true
+      "loadable": true,
+      "visual_preview": true
     },
     {
       "id": "ring_entangle_4q",
@@ -31,7 +34,8 @@
       "label": "Ring Entangle (4Q)",
       "num_qubits": 4,
       "file_size_bytes": 135,
-      "loadable": true
+      "loadable": true,
+      "visual_preview": true
     },
     {
       "id": "cx_control_high_2q",
@@ -39,7 +43,8 @@
       "label": "CX Control High (2Q)",
       "num_qubits": 2,
       "file_size_bytes": 69,
-      "loadable": true
+      "loadable": true,
+      "visual_preview": true
     },
     {
       "id": "example_iqp_4q",
@@ -47,7 +52,8 @@
       "label": "Example IQP (4Q)",
       "num_qubits": 4,
       "file_size_bytes": 171,
-      "loadable": true
+      "loadable": true,
+      "visual_preview": true
     },
     {
       "id": "iqp_like_4q",
@@ -55,7 +61,8 @@
       "label": "IQP-like (4Q)",
       "num_qubits": 4,
       "file_size_bytes": 177,
-      "loadable": true
+      "loadable": true,
+      "visual_preview": true
     },
     {
       "id": "iqp_8q",
@@ -63,7 +70,8 @@
       "label": "IQP Circuit (8Q)",
       "num_qubits": 8,
       "file_size_bytes": 5667,
-      "loadable": true
+      "loadable": true,
+      "visual_preview": true
     },
     {
       "id": "iqp_16q",
@@ -71,7 +79,8 @@
       "label": "IQP Circuit (16Q)",
       "num_qubits": 16,
       "file_size_bytes": 20442,
-      "loadable": true
+      "loadable": true,
+      "visual_preview": true
     },
     {
       "id": "iqp_20q",
@@ -79,7 +88,8 @@
       "label": "IQP Circuit (20Q)",
       "num_qubits": 20,
       "file_size_bytes": 23928,
-      "loadable": true
+      "loadable": true,
+      "visual_preview": true
     },
     {
       "id": "iqp_24q",
@@ -87,7 +97,8 @@
       "label": "IQP Circuit (24Q)",
       "num_qubits": 24,
       "file_size_bytes": 58803,
-      "loadable": true
+      "loadable": true,
+      "visual_preview": true
     },
     {
       "id": "iqp_56q",
@@ -95,7 +106,8 @@
       "label": "IQP Circuit (56Q)",
       "num_qubits": 56,
       "file_size_bytes": 122309,
-      "loadable": true
+      "loadable": true,
+      "visual_preview": true
     },
     {
       "id": "quantum_walk_16q",
@@ -103,7 +115,8 @@
       "label": "Quantum Walk (16Q)",
       "num_qubits": 0,
       "file_size_bytes": 8008980,
-      "loadable": false
+      "loadable": false,
+      "visual_preview": false
     },
     {
       "id": "quantum_walk_20q",
@@ -111,7 +124,8 @@
       "label": "Quantum Walk (20Q)",
       "num_qubits": 0,
       "file_size_bytes": 25199046,
-      "loadable": false
+      "loadable": false,
+      "visual_preview": false
     },
     {
       "id": "quantum_walk_24q",
@@ -119,7 +133,8 @@
       "label": "Quantum Walk (24Q)",
       "num_qubits": 0,
       "file_size_bytes": 56765304,
-      "loadable": false
+      "loadable": false,
+      "visual_preview": false
     },
     {
       "id": "quantum_walk_56q",
@@ -127,7 +142,8 @@
       "label": "Quantum Walk (56Q)",
       "num_qubits": 0,
       "file_size_bytes": 2034938466,
-      "loadable": false
+      "loadable": false,
+      "visual_preview": false
     },
     {
       "id": "quantum_walk_8q",
@@ -135,7 +151,8 @@
       "label": "Quantum Walk (8Q)",
       "num_qubits": 0,
       "file_size_bytes": 200258,
-      "loadable": true
+      "loadable": true,
+      "visual_preview": false
     },
     {
       "id": "hadamard_all_measure_8q",
@@ -143,7 +160,8 @@
       "label": "Hadamard + Measure (8Q)",
       "num_qubits": 8,
       "file_size_bytes": 111,
-      "loadable": true
+      "loadable": true,
+      "visual_preview": true
     },
     {
       "id": "mixed_gates_5q",
@@ -151,7 +169,8 @@
       "label": "Mixed Gates (5Q)",
       "num_qubits": 5,
       "file_size_bytes": 467,
-      "loadable": true
+      "loadable": true,
+      "visual_preview": true
     }
   ]
 }

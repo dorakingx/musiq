@@ -1,6 +1,8 @@
 import fs from "fs";
 import path from "path";
 
+import { isTemplateVisibleInWebView } from "@/lib/circuitTemplates";
+
 /** Repo source (local dev). */
 export const CIRCUITS_DIR = path.join(process.cwd(), "circuits");
 
@@ -76,6 +78,22 @@ export interface TemplateCatalogEntry {
   num_qubits: number;
   file_size_bytes: number;
   loadable: boolean;
+  /** False when the lattice cannot faithfully render the template (e.g. quantum walk). */
+  visual_preview: boolean;
+}
+
+/** Templates built from custom gate definitions / multi-controlled X are QASM-only on the canvas. */
+export function supportsVisualPreview(templateId: string): boolean {
+  return !templateId.startsWith("quantum_walk");
+}
+
+function enrichEntry(
+  entry: Omit<TemplateCatalogEntry, "visual_preview"> & { visual_preview?: boolean },
+): TemplateCatalogEntry {
+  return {
+    ...entry,
+    visual_preview: entry.visual_preview ?? supportsVisualPreview(entry.id),
+  };
 }
 
 function categoryKey(stem: string): string {
@@ -135,7 +153,9 @@ function readQregSnippet(filePath: string): string {
 
 export function listTemplateCatalog(): TemplateCatalogEntry[] {
   if (hasWebManifest()) {
-    return readManifest();
+    return readManifest()
+      .map((entry) => enrichEntry(entry))
+      .filter(isTemplateVisibleInWebView);
   }
 
   if (!fs.existsSync(CIRCUITS_DIR)) {
@@ -156,14 +176,16 @@ export function listTemplateCatalog(): TemplateCatalogEntry[] {
     const numQubits = parseQubitsFromQasmSnippet(snippet) ?? 0;
     const loadable = fileSize <= MAX_TEMPLATE_BYTES;
 
-    entries.push({
-      id: stem,
-      filename: name,
-      label: labelFromStem(stem, numQubits),
-      num_qubits: numQubits,
-      file_size_bytes: fileSize,
-      loadable,
-    });
+    entries.push(
+      enrichEntry({
+        id: stem,
+        filename: name,
+        label: labelFromStem(stem, numQubits),
+        num_qubits: numQubits,
+        file_size_bytes: fileSize,
+        loadable,
+      }),
+    );
   }
 
   entries.sort((a, b) => {
@@ -172,7 +194,7 @@ export function listTemplateCatalog(): TemplateCatalogEntry[] {
     return ka[0] - kb[0] || ka[1] - kb[1] || ka[2].localeCompare(kb[2]);
   });
 
-  return entries;
+  return entries.filter(isTemplateVisibleInWebView);
 }
 
 export function readTemplateFile(filename: string): {

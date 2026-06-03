@@ -18,6 +18,7 @@ import {
 } from "@/lib/types";
 import {
   canUseVisualView,
+  isTemplateVisibleInWebView,
   countQasmLines,
   LARGE_CIRCUIT_QUBIT_WARNING,
   parseQubitCountFromQasm,
@@ -126,6 +127,7 @@ export default function HomePage() {
   const [templatesLoading, setTemplatesLoading] = useState(true);
   const [templateSelectValue, setTemplateSelectValue] = useState("");
   const [templateLoading, setTemplateLoading] = useState(false);
+  const [visualPreviewNote, setVisualPreviewNote] = useState<string | null>(null);
   const generationIdRef = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
   const playbackFrameRef = useRef<number | null>(null);
@@ -211,7 +213,8 @@ export default function HomePage() {
         if (!response.ok || !payload.ok) {
           throw new Error(String(payload.error || "Failed to load templates."));
         }
-        setTemplates((payload.templates as TemplateSummary[]) ?? []);
+        const listed = (payload.templates as TemplateSummary[]) ?? [];
+        setTemplates(listed.filter(isTemplateVisibleInWebView));
       } catch (error) {
         const message = error instanceof Error ? error.message : "Unknown error";
         appendLog(`Template catalog unavailable: ${message}`);
@@ -351,20 +354,59 @@ export default function HomePage() {
         const numTemplateQubits = payload.num_qubits as number;
 
         setQasmText(qasm);
-        setActiveTemplateId(filename.replace(/\.qasm$/, ""));
+        const templateId = filename.replace(/\.qasm$/, "");
+        setActiveTemplateId(templateId);
+
+        const visualPreviewSupported = catalogEntry?.visual_preview !== false;
 
         if (canUseVisualView(numTemplateQubits)) {
-          try {
-            await importQasmToVisual(qasm);
-            appendLog(`Loaded template: ${label} (visual canvas updated).`);
-          } catch {
+          setNumQubits(numTemplateQubits);
+
+          if (visualPreviewSupported) {
+            try {
+              const response = await fetch("/api/circuit", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "import", qasm }),
+              });
+              const importPayload = await response.json();
+              if (!response.ok || !importPayload.ok) {
+                throw new Error(importPayload.error || "Import failed.");
+              }
+              const importedGates = (importPayload.gates as CircuitGate[]) ?? [];
+              setGates(importedGates);
+              if (importedGates.length === 0) {
+                setVisualPreviewNote(
+                  "This template could not be drawn on the visual lattice (unsupported or composite gates). Use Code (QASM) view for the full circuit, or switch to Code view and click Generate audio.",
+                );
+                appendLog(
+                  `Loaded template: ${label} (QASM ready — visual lattice is empty for this program).`,
+                );
+              } else {
+                setVisualPreviewNote(null);
+                appendLog(`Loaded template: ${label} (visual canvas updated).`);
+              }
+            } catch {
+              setGates([]);
+              setVisualPreviewNote(
+                "Visual import failed for this template. Use Code (QASM) view to inspect and run the circuit.",
+              );
+              appendLog(
+                `Loaded template: ${label} (QASM stored — open Code view to edit or generate).`,
+              );
+            }
+          } else {
             setGates([]);
+            setVisualPreviewNote(
+              "Quantum Walk templates use custom multi-controlled gates. They cannot be shown on the visual lattice — open Code (QASM) view, then click Generate audio.",
+            );
             appendLog(
-              `Loaded template: ${label} (QASM stored — open Code view to edit raw QASM).`,
+              `Loaded template: ${label} (QASM ready — Quantum Walk is Code view / generate only on the lattice).`,
             );
           }
         } else {
           setGates([]);
+          setVisualPreviewNote(null);
           appendLog(
             `Loaded template: ${label} (${numTemplateQubits}Q, visual canvas unavailable).`,
           );
@@ -439,6 +481,7 @@ export default function HomePage() {
     setGates([]);
     setQasmText("");
     setActiveTemplateId(null);
+    setVisualPreviewNote(null);
     appendLog("Circuit cleared");
   };
 
@@ -460,6 +503,7 @@ export default function HomePage() {
     if (editorMode === "qasm" && qasmText.trim()) {
       setQasmText("");
       setActiveTemplateId(null);
+      setVisualPreviewNote(null);
     }
     if (selectedGate === "CNOT" || selectedGate === "CZ") {
       if (qubit >= numQubits - 1) return;
@@ -993,13 +1037,8 @@ export default function HomePage() {
                         : "Choose a circuit…"}
                 </option>
                 {templates.map((template) => (
-                  <option
-                    key={template.id}
-                    value={template.filename}
-                    disabled={template.loadable === false}
-                  >
+                  <option key={template.id} value={template.filename}>
                     {template.label}
-                    {template.loadable === false ? " (too large for web)" : ""}
                   </option>
                 ))}
               </select>
@@ -1035,6 +1074,9 @@ export default function HomePage() {
             </div>
           ) : (
           <div className="circuit-board">
+            {visualPreviewNote ? (
+              <div className="visual-preview-note">{visualPreviewNote}</div>
+            ) : null}
             <svg
               className="circuit-svg"
               width={svgWidth}

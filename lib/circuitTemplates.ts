@@ -10,6 +10,8 @@ export interface TemplateSummary {
   file_size_bytes?: number;
   /** False when the QASM file is too large to load in the browser API. */
   loadable?: boolean;
+  /** False when the visual lattice cannot render this template (e.g. quantum walk). */
+  visual_preview?: boolean;
 }
 
 export interface TemplateListResponse {
@@ -34,6 +36,15 @@ const QREG_PATTERN = /qreg\s+q\[(\d+)\]/i;
 
 export function canUseVisualView(numQubits: number): boolean {
   return numQubits > 0 && numQubits <= VISUAL_MAX_QUBITS;
+}
+
+/** Templates offered in the web “Load example” dropdown (visual lattice + loadable). */
+export function isTemplateVisibleInWebView(template: TemplateSummary): boolean {
+  if (template.loadable === false) return false;
+  if (template.visual_preview === false) return false;
+  const qubits = template.num_qubits ?? 0;
+  if (qubits > VISUAL_MAX_QUBITS) return false;
+  return true;
 }
 
 export function parseQubitCountFromQasm(qasm: string): number | null {
