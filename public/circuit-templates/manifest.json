@@ -1,0 +1,157 @@
+{
+  "ok": true,
+  "templates": [
+    {
+      "id": "bell_2q",
+      "filename": "bell_2q.qasm",
+      "label": "Bell State (2Q)",
+      "num_qubits": 2,
+      "file_size_bytes": 69,
+      "loadable": true
+    },
+    {
+      "id": "ghz_3q",
+      "filename": "ghz_3q.qasm",
+      "label": "GHZ State (3Q)",
+      "num_qubits": 3,
+      "file_size_bytes": 83,
+      "loadable": true
+    },
+    {
+      "id": "simple_entangled_3q",
+      "filename": "simple_entangled_3q.qasm",
+      "label": "Simple Entangled (3Q)",
+      "num_qubits": 3,
+      "file_size_bytes": 115,
+      "loadable": true
+    },
+    {
+      "id": "ring_entangle_4q",
+      "filename": "ring_entangle_4q.qasm",
+      "label": "Ring Entangle (4Q)",
+      "num_qubits": 4,
+      "file_size_bytes": 135,
+      "loadable": true
+    },
+    {
+      "id": "cx_control_high_2q",
+      "filename": "cx_control_high_2q.qasm",
+      "label": "CX Control High (2Q)",
+      "num_qubits": 2,
+      "file_size_bytes": 69,
+      "loadable": true
+    },
+    {
+      "id": "example_iqp_4q",
+      "filename": "example_iqp_4q.qasm",
+      "label": "Example IQP (4Q)",
+      "num_qubits": 4,
+      "file_size_bytes": 171,
+      "loadable": true
+    },
+    {
+      "id": "iqp_like_4q",
+      "filename": "iqp_like_4q.qasm",
+      "label": "IQP-like (4Q)",
+      "num_qubits": 4,
+      "file_size_bytes": 177,
+      "loadable": true
+    },
+    {
+      "id": "iqp_8q",
+      "filename": "iqp_8q.qasm",
+      "label": "IQP Circuit (8Q)",
+      "num_qubits": 8,
+      "file_size_bytes": 5667,
+      "loadable": true
+    },
+    {
+      "id": "iqp_16q",
+      "filename": "iqp_16q.qasm",
+      "label": "IQP Circuit (16Q)",
+      "num_qubits": 16,
+      "file_size_bytes": 20442,
+      "loadable": true
+    },
+    {
+      "id": "iqp_20q",
+      "filename": "iqp_20q.qasm",
+      "label": "IQP Circuit (20Q)",
+      "num_qubits": 20,
+      "file_size_bytes": 23928,
+      "loadable": true
+    },
+    {
+      "id": "iqp_24q",
+      "filename": "iqp_24q.qasm",
+      "label": "IQP Circuit (24Q)",
+      "num_qubits": 24,
+      "file_size_bytes": 58803,
+      "loadable": true
+    },
+    {
+      "id": "iqp_56q",
+      "filename": "iqp_56q.qasm",
+      "label": "IQP Circuit (56Q)",
+      "num_qubits": 56,
+      "file_size_bytes": 122309,
+      "loadable": true
+    },
+    {
+      "id": "quantum_walk_16q",
+      "filename": "quantum_walk_16q.qasm",
+      "label": "Quantum Walk (16Q)",
+      "num_qubits": 0,
+      "file_size_bytes": 8008980,
+      "loadable": false
+    },
+    {
+      "id": "quantum_walk_20q",
+      "filename": "quantum_walk_20q.qasm",
+      "label": "Quantum Walk (20Q)",
+      "num_qubits": 0,
+      "file_size_bytes": 25199046,
+      "loadable": false
+    },
+    {
+      "id": "quantum_walk_24q",
+      "filename": "quantum_walk_24q.qasm",
+      "label": "Quantum Walk (24Q)",
+      "num_qubits": 0,
+      "file_size_bytes": 56765304,
+      "loadable": false
+    },
+    {
+      "id": "quantum_walk_56q",
+      "filename": "quantum_walk_56q.qasm",
+      "label": "Quantum Walk (56Q)",
+      "num_qubits": 0,
+      "file_size_bytes": 2034938466,
+      "loadable": false
+    },
+    {
+      "id": "quantum_walk_8q",
+      "filename": "quantum_walk_8q.qasm",
+      "label": "Quantum Walk (8Q)",
+      "num_qubits": 0,
+      "file_size_bytes": 200258,
+      "loadable": true
+    },
+    {
+      "id": "hadamard_all_measure_8q",
+      "filename": "hadamard_all_measure_8q.qasm",
+      "label": "Hadamard + Measure (8Q)",
+      "num_qubits": 8,
+      "file_size_bytes": 111,
+      "loadable": true
+    },
+    {
+      "id": "mixed_gates_5q",
+      "filename": "mixed_gates_5q.qasm",
+      "label": "Mixed Gates (5Q)",
+      "num_qubits": 5,
+      "file_size_bytes": 467,
+      "loadable": true
+    }
+  ]
+}

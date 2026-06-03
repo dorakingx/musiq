@@ -1,7 +1,32 @@
 import fs from "fs";
 import path from "path";
 
+/** Repo source (local dev). */
 export const CIRCUITS_DIR = path.join(process.cwd(), "circuits");
+
+/** Bundled for Vercel — populated by `npm run build` (prebuild sync). */
+export const WEB_TEMPLATES_DIR = path.join(process.cwd(), "public", "circuit-templates");
+
+const MANIFEST_PATH = path.join(WEB_TEMPLATES_DIR, "manifest.json");
+
+function hasWebManifest(): boolean {
+  return fs.existsSync(MANIFEST_PATH);
+}
+
+function readManifest(): TemplateCatalogEntry[] {
+  const raw = JSON.parse(fs.readFileSync(MANIFEST_PATH, "utf-8")) as {
+    templates?: TemplateCatalogEntry[];
+  };
+  return raw.templates ?? [];
+}
+
+function resolveReadPath(safeName: string): string {
+  const webPath = path.join(WEB_TEMPLATES_DIR, safeName);
+  if (fs.existsSync(webPath)) return webPath;
+  const repoPath = path.join(CIRCUITS_DIR, safeName);
+  if (fs.existsSync(repoPath)) return repoPath;
+  throw new Error(`Template not found: ${safeName}`);
+}
 
 /** Max QASM file size served to the browser (larger files are listed but not loadable). */
 export const MAX_TEMPLATE_BYTES = 2 * 1024 * 1024;
@@ -109,8 +134,14 @@ function readQregSnippet(filePath: string): string {
 }
 
 export function listTemplateCatalog(): TemplateCatalogEntry[] {
+  if (hasWebManifest()) {
+    return readManifest();
+  }
+
   if (!fs.existsSync(CIRCUITS_DIR)) {
-    throw new Error(`Circuits directory not found: ${CIRCUITS_DIR}`);
+    throw new Error(
+      `Circuits directory not found. Run "node scripts/sync-circuit-templates.mjs" or npm run build.`,
+    );
   }
 
   const entries: TemplateCatalogEntry[] = [];
@@ -151,11 +182,22 @@ export function readTemplateFile(filename: string): {
   qasm: string;
 } {
   const safeName = validateTemplateFilename(filename);
-  const filePath = path.join(CIRCUITS_DIR, safeName);
-  if (!fs.existsSync(filePath)) {
-    throw new Error(`Template not found: ${safeName}`);
+
+  if (hasWebManifest()) {
+    const entry = readManifest().find((item) => item.filename === safeName);
+    if (!entry) {
+      throw new Error(`Template not found: ${safeName}`);
+    }
+    if (!entry.loadable) {
+      const sizeMb = (entry.file_size_bytes / (1024 * 1024)).toFixed(1);
+      throw new Error(
+        `Template "${safeName}" is too large for the web editor (${sizeMb} MB). ` +
+          `Use a smaller example or load it via the CLI (qwave_run.py).`,
+      );
+    }
   }
 
+  const filePath = resolveReadPath(safeName);
   const fileSize = fs.statSync(filePath).size;
   if (fileSize > MAX_TEMPLATE_BYTES) {
     const sizeMb = (fileSize / (1024 * 1024)).toFixed(1);
