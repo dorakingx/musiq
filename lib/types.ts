@@ -16,8 +16,9 @@ export interface TwoQubitGate {
 export type CircuitGate = SingleQubitGate | TwoQubitGate;
 
 export interface GeneratePayload {
-  num_qubits: number;
-  gates: CircuitGate[];
+  num_qubits?: number;
+  gates?: CircuitGate[];
+  qasm?: string;
   duration: number;
   sample_rate: number;
   shots: number;

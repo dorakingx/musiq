@@ -16,6 +16,8 @@ from qwave.utils.backends import (
     get_backend_label,
     parse_backend_type,
 )
+from qiskit.qasm2 import loads
+
 from qwave.web.circuit_json import circuit_from_payload
 from qwave.web.ionq_runner import resolve_ionq_backend, run_ionq_shots
 from qwave.web.simulator_light import simulate_ideal
@@ -62,6 +64,13 @@ def _measurement_sequence_from_probabilities(probabilities: np.ndarray, shots: i
     return np.random.choice(len(probabilities), size=shots, p=probabilities).tolist()
 
 
+def _circuit_from_request(payload: Dict[str, Any]):
+    qasm = str(payload.get("qasm", "")).strip()
+    if qasm:
+        return loads(qasm)
+    return circuit_from_payload(payload)
+
+
 def generate_audio_from_payload(
     payload: Dict[str, Any],
     status_callback: StatusCallback = None,
@@ -71,7 +80,7 @@ def generate_audio_from_payload(
     shots = int(payload.get("shots", 1024))
     backend_type = parse_backend_type(payload.get("backend", BACKEND_AER))
 
-    circuit = circuit_from_payload(payload)
+    circuit = _circuit_from_request(payload)
     if circuit.size() == 0:
         raise ValueError("Circuit is empty. Add at least one gate before generating audio.")
 

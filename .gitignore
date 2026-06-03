@@ -61,3 +61,4 @@ out/
 # Python packaging
 qwave.egg-info/
 .vercel
+circuits/quantum_walk_56q.qasm

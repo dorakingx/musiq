@@ -16,6 +16,14 @@ import {
   type GateType,
   type GenerateResult,
 } from "@/lib/types";
+import {
+  canUseVisualView,
+  countQasmLines,
+  LARGE_CIRCUIT_QUBIT_WARNING,
+  parseQubitCountFromQasm,
+  type CircuitEditorMode,
+  type TemplateSummary,
+} from "@/lib/circuitTemplates";
 import { drawWaveformPanel } from "@/lib/waveformPlot";
 
 const COLUMN_WIDTH = 70;
@@ -98,6 +106,12 @@ export default function HomePage() {
   const spectrumCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const qasmInputRef = useRef<HTMLInputElement | null>(null);
+  const [editorMode, setEditorMode] = useState<CircuitEditorMode>("visual");
+  const [qasmText, setQasmText] = useState("");
+  const [activeTemplateId, setActiveTemplateId] = useState<string | null>(null);
+  const [templates, setTemplates] = useState<TemplateSummary[]>([]);
+  const [templatesLoading, setTemplatesLoading] = useState(true);
+  const [templateSelectValue, setTemplateSelectValue] = useState("");
   const generationIdRef = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
   const playbackFrameRef = useRef<number | null>(null);
@@ -110,6 +124,20 @@ export default function HomePage() {
   const gridColumns = Math.max(maxColumn + 2, 6);
   const svgWidth = LEFT_MARGIN + gridColumns * COLUMN_WIDTH + 40;
   const svgHeight = TOP_MARGIN + numQubits * QUBIT_SPACING + 24;
+
+  const qasmQubitCount = useMemo(
+    () => parseQubitCountFromQasm(qasmText),
+    [qasmText],
+  );
+
+  const effectiveQubitCount =
+    editorMode === "qasm" && qasmQubitCount !== null ? qasmQubitCount : numQubits;
+
+  const visualViewAllowed = canUseVisualView(
+    qasmQubitCount !== null && editorMode === "qasm" ? qasmQubitCount : numQubits,
+  );
+
+  const qasmLineCount = useMemo(() => countQasmLines(qasmText), [qasmText]);
 
   const appendLog = useCallback((message: string) => {
     setLogs((prev) => [...prev, message]);
@@ -156,6 +184,180 @@ export default function HomePage() {
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, [redrawPlots]);
+
+  useEffect(() => {
+    const loadTemplates = async () => {
+      try {
+        const response = await fetch("/api/templates", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "list" }),
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload.ok) {
+          throw new Error(payload.error || "Failed to load templates.");
+        }
+        setTemplates(payload.templates ?? []);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Unknown error";
+        appendLog(`Template catalog unavailable: ${message}`);
+      } finally {
+        setTemplatesLoading(false);
+      }
+    };
+    void loadTemplates();
+  }, [appendLog]);
+
+  const importQasmToVisual = useCallback(
+    async (qasm: string) => {
+      const response = await fetch("/api/circuit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "import", qasm }),
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.error || "Import failed.");
+      }
+      const importedQubits = payload.num_qubits as number;
+      if (!canUseVisualView(importedQubits)) {
+        throw new Error(
+          `Circuit has ${importedQubits} qubits; visual editor supports up to ${MAX_QUBITS}.`,
+        );
+      }
+      setNumQubits(importedQubits);
+      setGates(payload.gates);
+      return importedQubits;
+    },
+    [],
+  );
+
+  const exportVisualToQasm = useCallback(async () => {
+    if (gates.length === 0) {
+      return "";
+    }
+    const response = await fetch("/api/circuit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "export",
+        num_qubits: numQubits,
+        gates: gatesToPayload(gates),
+      }),
+    });
+    const payload = await response.json();
+    if (!response.ok || !payload.ok) {
+      throw new Error(payload.error || "Export failed.");
+    }
+    return payload.qasm as string;
+  }, [gates, numQubits]);
+
+  const switchEditorMode = useCallback(
+    async (mode: CircuitEditorMode) => {
+      if (mode === editorMode) return;
+
+      if (mode === "qasm") {
+        try {
+          const exported = await exportVisualToQasm();
+          setQasmText(exported);
+          setEditorMode("qasm");
+          appendLog(
+            exported
+              ? "Exported visual circuit to QASM editor."
+              : "QASM editor ready — paste or load a circuit.",
+          );
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Unknown error";
+          window.alert(`Failed to export circuit: ${message}`);
+        }
+        return;
+      }
+
+      const qubits = qasmQubitCount ?? parseQubitCountFromQasm(qasmText);
+      if (qubits !== null && !canUseVisualView(qubits)) {
+        window.alert(
+          `This circuit has ${qubits} qubits. The visual editor supports up to ${MAX_QUBITS} qubits. Use Code (QASM) view instead.`,
+        );
+        return;
+      }
+
+      if (!qasmText.trim()) {
+        setEditorMode("visual");
+        appendLog("Switched to visual editor.");
+        return;
+      }
+
+      try {
+        await importQasmToVisual(qasmText);
+        setEditorMode("visual");
+        appendLog("Imported QASM into visual canvas.");
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Unknown error";
+        window.alert(`Failed to import QASM into visual editor: ${message}`);
+      }
+    },
+    [
+      appendLog,
+      editorMode,
+      exportVisualToQasm,
+      importQasmToVisual,
+      qasmQubitCount,
+      qasmText,
+    ],
+  );
+
+  const loadTemplate = useCallback(
+    async (filename: string) => {
+      try {
+        const response = await fetch("/api/templates", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "get", filename }),
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload.ok) {
+          throw new Error(payload.error || "Failed to load template.");
+        }
+
+        const qasm = payload.qasm as string;
+        const label = payload.label as string;
+        const numTemplateQubits = payload.num_qubits as number;
+
+        setQasmText(qasm);
+        setActiveTemplateId(filename.replace(/\.qasm$/, ""));
+        setEditorMode("qasm");
+
+        if (canUseVisualView(numTemplateQubits)) {
+          try {
+            await importQasmToVisual(qasm);
+            appendLog(`Loaded template: ${label} (visual + QASM).`);
+          } catch {
+            setGates([]);
+            appendLog(`Loaded template: ${label} (QASM only; partial visual import).`);
+          }
+        } else {
+          setGates([]);
+          appendLog(
+            `Loaded template: ${label} (${numTemplateQubits}Q). Visual view disabled — use Code (QASM).`,
+          );
+        }
+
+        if (numTemplateQubits >= LARGE_CIRCUIT_QUBIT_WARNING) {
+          appendLog(
+            `Note: ${numTemplateQubits}-qubit circuits may take longer to simulate in the browser API.`,
+          );
+        }
+
+        setStatus(`Template loaded: ${label}`);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Unknown error";
+        window.alert(`Failed to load template: ${message}`);
+      } finally {
+        setTemplateSelectValue("");
+      }
+    },
+    [appendLog, importQasmToVisual],
+  );
 
   const stopPlaybackMonitor = () => {
     if (playbackFrameRef.current !== null) {
@@ -204,6 +406,8 @@ export default function HomePage() {
 
   const clearCircuit = () => {
     setGates([]);
+    setQasmText("");
+    setActiveTemplateId(null);
     appendLog("Circuit cleared");
   };
 
@@ -222,6 +426,10 @@ export default function HomePage() {
   };
 
   const placeGate = (column: number, qubit: number) => {
+    if (editorMode === "qasm" && qasmText.trim()) {
+      setQasmText("");
+      setActiveTemplateId(null);
+    }
     if (selectedGate === "CNOT" || selectedGate === "CZ") {
       if (qubit >= numQubits - 1) return;
       if (gateAtPosition(gates, column, qubit, selectedGate)) {
@@ -313,7 +521,13 @@ export default function HomePage() {
   };
 
   const generateAudio = async () => {
-    if (gates.length === 0) {
+    const useQasmMode = editorMode === "qasm";
+    if (useQasmMode) {
+      if (!qasmText.trim()) {
+        window.alert("Please enter or load QASM in the Code view first.");
+        return;
+      }
+    } else if (gates.length === 0) {
       window.alert("Please add gates to the circuit first.");
       return;
     }
@@ -329,20 +543,34 @@ export default function HomePage() {
 
     setIsGenerating(true);
     setStatus("Generating audio...");
-    appendLog("Starting generation...");
+    appendLog(
+      useQasmMode
+        ? "Starting generation from QASM..."
+        : "Starting generation from visual circuit...",
+    );
 
     try {
+      const requestBody = useQasmMode
+        ? {
+            qasm: qasmText,
+            duration,
+            sample_rate: sampleRate,
+            shots,
+            backend,
+          }
+        : {
+            num_qubits: numQubits,
+            gates: gatesToPayload(gates),
+            duration,
+            sample_rate: sampleRate,
+            shots,
+            backend,
+          };
+
       const response = await fetch("/api/generate_audio", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          num_qubits: numQubits,
-          gates: gatesToPayload(gates),
-          duration,
-          sample_rate: sampleRate,
-          shots,
-          backend,
-        }),
+        body: JSON.stringify(requestBody),
         signal: controller.signal,
       });
 
@@ -425,20 +653,27 @@ export default function HomePage() {
   const loadCircuitFromFile = async (file: File) => {
     try {
       const qasm = await file.text();
-      const response = await fetch("/api/circuit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "import", qasm }),
-      });
-      const payload = await response.json();
-      if (!response.ok || !payload.ok) {
-        throw new Error(payload.error || "Import failed.");
+      setQasmText(qasm);
+      setActiveTemplateId(null);
+      setEditorMode("qasm");
+
+      const qubits = parseQubitCountFromQasm(qasm);
+      if (qubits !== null && canUseVisualView(qubits)) {
+        try {
+          await importQasmToVisual(qasm);
+          appendLog(`Circuit loaded from: ${file.name} (visual + QASM).`);
+        } catch {
+          setGates([]);
+          appendLog(`Circuit loaded from: ${file.name} (QASM only).`);
+        }
+      } else {
+        setGates([]);
+        appendLog(`Circuit loaded from: ${file.name} (QASM — visual view unavailable).`);
       }
-      setNumQubits(payload.num_qubits);
-      setGates(payload.gates);
-      appendLog(`Circuit loaded from: ${file.name}`);
-      appendLog("Visual reconstruction complete.");
-      window.alert(`Circuit successfully loaded and reconstructed from:\n${file.name}`);
+
+      if (qubits !== null && qubits >= LARGE_CIRCUIT_QUBIT_WARNING) {
+        appendLog(`Note: ${qubits}-qubit circuits may take longer to simulate.`);
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
       window.alert(`Failed to load circuit: ${message}`);
@@ -670,12 +905,93 @@ export default function HomePage() {
 
         <section className="panel stack center-panel">
           <div className="panel-header">
-            <h2>Circuit canvas</h2>
+            <h2>Circuit editor</h2>
             <p className="hint">
-              Paint gates on the lattice. Tap the same cell again to erase — sculpt your
-              quantum score before you listen.
+              Build on the visual lattice or edit OpenQASM 2.0 directly — load examples, tweak
+              gates, then generate audio.
             </p>
           </div>
+
+          <div className="circuit-toolbar">
+            <div className="editor-tabs" role="tablist" aria-label="Circuit editor mode">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={editorMode === "visual"}
+                className={`editor-tab ${editorMode === "visual" ? "editor-tab--active" : ""}`}
+                disabled={!visualViewAllowed && qasmQubitCount !== null}
+                title={
+                  !visualViewAllowed && qasmQubitCount !== null
+                    ? `Circuit has ${qasmQubitCount} qubits; visual editor supports up to ${MAX_QUBITS}`
+                    : "Drag-and-drop gate canvas"
+                }
+                onClick={() => void switchEditorMode("visual")}
+              >
+                Visual view
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={editorMode === "qasm"}
+                className={`editor-tab ${editorMode === "qasm" ? "editor-tab--active" : ""}`}
+                onClick={() => void switchEditorMode("qasm")}
+              >
+                Code (QASM) view
+              </button>
+            </div>
+
+            <div className="template-select-wrap">
+              <label htmlFor="template-select">Load example</label>
+              <select
+                id="template-select"
+                className="template-select"
+                value={templateSelectValue}
+                disabled={templatesLoading || templates.length === 0}
+                onChange={(event) => {
+                  const filename = event.target.value;
+                  if (filename) void loadTemplate(filename);
+                }}
+              >
+                <option value="">
+                  {templatesLoading ? "Loading templates…" : "Choose a circuit…"}
+                </option>
+                {templates.map((template) => (
+                  <option key={template.id} value={template.filename}>
+                    {template.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {editorMode === "qasm" ? (
+            <div className="qasm-editor-wrap">
+              <div className="qasm-editor-meta">
+                <span>
+                  {qasmQubitCount !== null
+                    ? `${qasmQubitCount} qubit${qasmQubitCount === 1 ? "" : "s"}`
+                    : "Qubits: unknown"}
+                </span>
+                <span>{qasmLineCount} lines</span>
+                {activeTemplateId ? <span>Template: {activeTemplateId}</span> : null}
+              </div>
+              <textarea
+                className="qasm-editor"
+                spellCheck={false}
+                value={qasmText}
+                placeholder="Paste or edit OpenQASM 2.0 here, or load an example from the dropdown."
+                onChange={(event) => {
+                  setQasmText(event.target.value);
+                  setActiveTemplateId(null);
+                }}
+              />
+            </div>
+          ) : !visualViewAllowed ? (
+            <div className="visual-disabled-overlay">
+              This circuit has {effectiveQubitCount} qubits. The visual editor supports up to{" "}
+              {MAX_QUBITS} qubits — switch to Code (QASM) view to edit and run it.
+            </div>
+          ) : (
           <div className="circuit-board">
             <svg
               className="circuit-svg"
@@ -861,6 +1177,7 @@ export default function HomePage() {
               })}
             </svg>
           </div>
+          )}
 
           <div className="card">
             <div className="card__head">
