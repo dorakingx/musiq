@@ -7,6 +7,9 @@ export interface TemplateSummary {
   filename: string;
   label: string;
   num_qubits: number;
+  file_size_bytes?: number;
+  /** False when the QASM file is too large to load in the browser API. */
+  loadable?: boolean;
 }
 
 export interface TemplateListResponse {

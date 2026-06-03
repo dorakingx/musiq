@@ -87,6 +87,19 @@ function gateAtPosition(gates: CircuitGate[], column: number, qubit: number, typ
   });
 }
 
+async function parseTemplatesResponse(response: Response) {
+  const text = await response.text();
+  try {
+    return JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    throw new Error(
+      response.status === 404
+        ? "Template API not found. Restart the dev server (npm run dev) and try again."
+        : `Template API returned an invalid response (HTTP ${response.status}).`,
+    );
+  }
+}
+
 export default function HomePage() {
   const [numQubits, setNumQubits] = useState(3);
   const [selectedGate, setSelectedGate] = useState<GateType>("H");
@@ -112,6 +125,7 @@ export default function HomePage() {
   const [templates, setTemplates] = useState<TemplateSummary[]>([]);
   const [templatesLoading, setTemplatesLoading] = useState(true);
   const [templateSelectValue, setTemplateSelectValue] = useState("");
+  const [templateLoading, setTemplateLoading] = useState(false);
   const generationIdRef = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
   const playbackFrameRef = useRef<number | null>(null);
@@ -193,11 +207,11 @@ export default function HomePage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "list" }),
         });
-        const payload = await response.json();
+        const payload = await parseTemplatesResponse(response);
         if (!response.ok || !payload.ok) {
-          throw new Error(payload.error || "Failed to load templates.");
+          throw new Error(String(payload.error || "Failed to load templates."));
         }
-        setTemplates(payload.templates ?? []);
+        setTemplates((payload.templates as TemplateSummary[]) ?? []);
       } catch (error) {
         const message = error instanceof Error ? error.message : "Unknown error";
         appendLog(`Template catalog unavailable: ${message}`);
@@ -308,15 +322,28 @@ export default function HomePage() {
 
   const loadTemplate = useCallback(
     async (filename: string) => {
+      const catalogEntry = templates.find((entry) => entry.filename === filename);
+      if (catalogEntry?.loadable === false) {
+        const sizeMb = ((catalogEntry.file_size_bytes ?? 0) / (1024 * 1024)).toFixed(1);
+        window.alert(
+          `"${catalogEntry.label}" is too large for the web editor (${sizeMb} MB). ` +
+            "Choose a smaller example, or use qwave_run.py with this QASM file.",
+        );
+        setTemplateSelectValue("");
+        return;
+      }
+
+      setTemplateLoading(true);
+      setStatus("Loading template...");
       try {
         const response = await fetch("/api/templates", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "get", filename }),
         });
-        const payload = await response.json();
+        const payload = await parseTemplatesResponse(response);
         if (!response.ok || !payload.ok) {
-          throw new Error(payload.error || "Failed to load template.");
+          throw new Error(String(payload.error || "Failed to load template."));
         }
 
         const qasm = payload.qasm as string;
@@ -326,19 +353,21 @@ export default function HomePage() {
         setQasmText(qasm);
         setActiveTemplateId(filename.replace(/\.qasm$/, ""));
         setEditorMode("qasm");
+        setStatus(`Template loaded: ${label}`);
+        appendLog(`Loaded template: ${label}`);
 
         if (canUseVisualView(numTemplateQubits)) {
           try {
             await importQasmToVisual(qasm);
-            appendLog(`Loaded template: ${label} (visual + QASM).`);
+            appendLog("Visual canvas updated from template.");
           } catch {
             setGates([]);
-            appendLog(`Loaded template: ${label} (QASM only; partial visual import).`);
+            appendLog("Visual import skipped (QASM is still available in Code view).");
           }
         } else {
           setGates([]);
           appendLog(
-            `Loaded template: ${label} (${numTemplateQubits}Q). Visual view disabled — use Code (QASM).`,
+            `Visual view disabled for ${numTemplateQubits} qubits — edit in Code (QASM) view.`,
           );
         }
 
@@ -347,16 +376,17 @@ export default function HomePage() {
             `Note: ${numTemplateQubits}-qubit circuits may take longer to simulate in the browser API.`,
           );
         }
-
-        setStatus(`Template loaded: ${label}`);
       } catch (error) {
         const message = error instanceof Error ? error.message : "Unknown error";
+        setStatus("Template load failed");
+        appendLog(`Template load error: ${message}`);
         window.alert(`Failed to load template: ${message}`);
       } finally {
+        setTemplateLoading(false);
         setTemplateSelectValue("");
       }
     },
-    [appendLog, importQasmToVisual],
+    [appendLog, importQasmToVisual, templates],
   );
 
   const stopPlaybackMonitor = () => {
@@ -946,18 +976,29 @@ export default function HomePage() {
                 id="template-select"
                 className="template-select"
                 value={templateSelectValue}
-                disabled={templatesLoading || templates.length === 0}
+                disabled={templatesLoading || templateLoading || templates.length === 0}
                 onChange={(event) => {
                   const filename = event.target.value;
                   if (filename) void loadTemplate(filename);
                 }}
               >
                 <option value="">
-                  {templatesLoading ? "Loading templates…" : "Choose a circuit…"}
+                  {templateLoading
+                    ? "Loading circuit…"
+                    : templatesLoading
+                      ? "Loading templates…"
+                      : templates.length === 0
+                        ? "No templates available"
+                        : "Choose a circuit…"}
                 </option>
                 {templates.map((template) => (
-                  <option key={template.id} value={template.filename}>
+                  <option
+                    key={template.id}
+                    value={template.filename}
+                    disabled={template.loadable === false}
+                  >
                     {template.label}
+                    {template.loadable === false ? " (too large for web)" : ""}
                   </option>
                 ))}
               </select>

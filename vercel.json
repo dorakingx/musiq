@@ -7,9 +7,6 @@
     },
     "api/health.py": {
       "maxDuration": 10
-    },
-    "api/templates.py": {
-      "maxDuration": 10
     }
   },
   "rewrites": [
