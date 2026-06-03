@@ -15,6 +15,5 @@ qwave/modules/optimizer.py
 qwave/modules/quantum_optimizer.py
 qwave/modules/quantum_waveform_generator.py
 qwave/scripts
-circuits
 images
 logo

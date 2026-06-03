@@ -88,6 +88,8 @@ if (!fs.existsSync(SOURCE_DIR)) {
   process.exit(0);
 }
 
+const existingManifest = path.join(OUT_DIR, "manifest.json");
+
 fs.mkdirSync(OUT_DIR, { recursive: true });
 
 for (const name of fs.readdirSync(OUT_DIR)) {
@@ -128,8 +130,19 @@ templates.sort((a, b) => {
   return ka - kb || a.num_qubits - b.num_qubits || a.id.localeCompare(b.id);
 });
 
+if (templates.length === 0) {
+  if (fs.existsSync(existingManifest)) {
+    console.warn(
+      "[sync-circuit-templates] No .qasm files in circuits/; keeping existing manifest.",
+    );
+    process.exit(0);
+  }
+  console.error("[sync-circuit-templates] No templates found and no manifest to keep.");
+  process.exit(1);
+}
+
 fs.writeFileSync(
-  path.join(OUT_DIR, "manifest.json"),
+  existingManifest,
   JSON.stringify({ ok: true, templates }, null, 2),
 );
 
