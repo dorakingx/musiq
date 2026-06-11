@@ -39,7 +39,7 @@ export default function RootLayout({
       <body>
         <div className="ambient" aria-hidden="true">
           <div className="ambient__orb ambient__orb--violet" />
-          <div className="ambient__orb ambient__orb--rose" />
+          <div className="ambient__orb ambient__orb--indigo" />
           <div className="ambient__orb ambient__orb--cyan" />
         </div>
         {children}

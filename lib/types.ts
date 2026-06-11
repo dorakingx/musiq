@@ -69,15 +69,15 @@ export const GATE_OPTIONS: { type: GateType; label: string }[] = [
 ];
 
 export const GATE_COLORS: Record<string, string> = {
-  H: "#4CAF50",
-  X: "#F44336",
-  Y: "#FF9800",
-  Z: "#2196F3",
-  T: "#9C27B0",
-  S: "#00BCD4",
-  CNOT: "#E91E63",
-  CZ: "#673AB7",
-  M: "#607D8B",
+  H: "#a78bfa",
+  X: "#6366f1",
+  Y: "#60a5fa",
+  Z: "#38bdf8",
+  T: "#8b5cf6",
+  S: "#22d3ee",
+  CNOT: "#7c3aed",
+  CZ: "#4f46e5",
+  M: "#64748b",
 };
 
 export const SAMPLE_RATES = [22050, 44100, 48000, 96000] as const;

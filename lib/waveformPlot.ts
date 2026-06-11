@@ -3,11 +3,11 @@ import type { GenerateResult } from "@/lib/types";
 const COLORS = {
   grid: "rgba(255, 255, 255, 0.04)",
   label: "#6b7694",
-  waveform: "#c084fc",
-  waveformGlow: "rgba(192, 132, 252, 0.4)",
-  playback: "#f472b6",
-  spectrum: "#22d3ee",
-  spectrumFill: "rgba(34, 211, 238, 0.08)",
+  waveform: "#a78bfa",
+  waveformGlow: "rgba(167, 139, 250, 0.4)",
+  playback: "#60a5fa",
+  spectrum: "#3b82f6",
+  spectrumFill: "rgba(59, 130, 246, 0.08)",
 };
 
 function drawGrid(ctx: CanvasRenderingContext2D, w: number, h: number) {
@@ -26,7 +26,7 @@ export function drawWaveformPanel(
   timeCanvas: HTMLCanvasElement,
   spectrumCanvas: HTMLCanvasElement,
   result: GenerateResult | null,
-  playbackTimeSec: number | null,
+  playbackTimeSec: number,
 ) {
   const timeCtx = timeCanvas.getContext("2d");
   const spectrumCtx = spectrumCanvas.getContext("2d");
@@ -87,10 +87,10 @@ export function drawWaveformPanel(
   timeCtx.font = "400 9px DM Sans, sans-serif";
   timeCtx.fillText("Time (s)", tw / 2 - 18, th - 8);
 
-  if (playbackTimeSec !== null && duration > 0) {
+  if (duration > 0) {
     const px = Math.max(0, Math.min(playbackTimeSec / duration, 1)) * tw;
     timeCtx.strokeStyle = COLORS.playback;
-    timeCtx.shadowColor = "rgba(244, 114, 182, 0.6)";
+    timeCtx.shadowColor = "rgba(96, 165, 250, 0.6)";
     timeCtx.shadowBlur = 10;
     timeCtx.lineWidth = 2;
     timeCtx.beginPath();

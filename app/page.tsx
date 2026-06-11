@@ -26,6 +26,8 @@ import {
   type TemplateSummary,
 } from "@/lib/circuitTemplates";
 import { drawWaveformPanel } from "@/lib/waveformPlot";
+import { AudioPlayer } from "@/app/components/AudioPlayer";
+import { ResearchDrawer } from "@/app/components/ResearchDrawer";
 
 const COLUMN_WIDTH = 70;
 const QUBIT_SPACING = 56;
@@ -115,7 +117,9 @@ export default function HomePage() {
   const [result, setResult] = useState<GenerateResult | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [hoverCell, setHoverCell] = useState<{ column: number; qubit: number } | null>(null);
-  const [playbackTime, setPlaybackTime] = useState<number | null>(null);
+  const [playbackTime, setPlaybackTime] = useState<number>(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [researchOpen, setResearchOpen] = useState(false);
   const timeCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const spectrumCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -439,32 +443,7 @@ export default function HomePage() {
     }
   };
 
-  const stopAudio = () => {
-    const audio = audioRef.current;
-    if (audio) {
-      audio.pause();
-      audio.currentTime = 0;
-    }
-    stopPlaybackMonitor();
-    setPlaybackTime(result?.duration ?? null);
-    appendLog("Audio stopped");
-    setStatus("Ready");
-  };
-
-  const playAudio = () => {
-    if (!audioUrl) {
-      window.alert("Please generate audio first.");
-      return;
-    }
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    audio.currentTime = 0;
-    setPlaybackTime(0);
-    void audio.play();
-    appendLog("Playing audio...");
-    setStatus("Playing audio...");
-
+  const startPlaybackMonitor = () => {
     const tick = () => {
       if (!audioRef.current || audioRef.current.paused) {
         stopPlaybackMonitor();
@@ -475,6 +454,46 @@ export default function HomePage() {
     };
     stopPlaybackMonitor();
     playbackFrameRef.current = requestAnimationFrame(tick);
+  };
+
+  const pauseAudio = () => {
+    const audio = audioRef.current;
+    if (audio) {
+      audio.pause();
+      setPlaybackTime(audio.currentTime);
+    }
+    stopPlaybackMonitor();
+    setIsPlaying(false);
+    setStatus("Ready");
+  };
+
+  const togglePlayPause = () => {
+    if (!audioUrl) {
+      window.alert("Please generate audio first.");
+      return;
+    }
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    if (!audio.paused) {
+      pauseAudio();
+      appendLog("Audio paused");
+      return;
+    }
+
+    void audio.play();
+    setIsPlaying(true);
+    appendLog("Playing audio...");
+    setStatus("Playing audio...");
+    startPlaybackMonitor();
+  };
+
+  const seekAudio = (time: number) => {
+    const audio = audioRef.current;
+    if (!audio || !result?.duration) return;
+    const clamped = Math.max(0, Math.min(time, result.duration));
+    audio.currentTime = clamped;
+    setPlaybackTime(clamped);
   };
 
   const clearCircuit = () => {
@@ -667,9 +686,10 @@ export default function HomePage() {
         return nextUrl;
       });
 
-      setPlaybackTime(null);
+      setPlaybackTime(0);
+      setIsPlaying(false);
       setStatus("Audio generated successfully!");
-      appendLog("Audio ready for playback. Use Save WAV to download when you want.");
+      appendLog("Audio ready for playback. Use Save Audio to download when you want.");
     } catch (error) {
       if (generationId !== generationIdRef.current) return;
       if (error instanceof DOMException && error.name === "AbortError") {
@@ -778,13 +798,31 @@ export default function HomePage() {
             </p>
           </div>
         </div>
-        <div className="hero__status">
-          <span
-            className={`hero__status-dot ${isGenerating ? "hero__status-dot--busy" : ""}`}
-          />
-          <span>{status}</span>
+        <div className="hero__actions">
+          <button
+            type="button"
+            className={`research-toggle ${researchOpen ? "research-toggle--active" : ""}`}
+            onClick={() => setResearchOpen((prev) => !prev)}
+            aria-expanded={researchOpen}
+            aria-controls="research-drawer"
+          >
+            Analysis
+          </button>
+          <div className="hero__status">
+            <span
+              className={`hero__status-dot ${isGenerating ? "hero__status-dot--busy" : ""}`}
+            />
+            <span>{status}</span>
+          </div>
         </div>
       </header>
+
+      <ResearchDrawer
+        open={researchOpen}
+        onClose={() => setResearchOpen(false)}
+        metricsText={metricsText}
+        logs={logs}
+      />
 
       <div className="grid">
         <section className="panel stack left-panel">
@@ -875,31 +913,33 @@ export default function HomePage() {
               <span className="card__accent" />
             </div>
             <div className="field-grid">
-              <div className="field">
-                <label htmlFor="duration">Duration (s)</label>
-                <input
-                  id="duration"
-                  type="number"
-                  min={MIN_DURATION}
-                  max={MAX_DURATION}
-                  step={0.5}
-                  value={duration}
-                  onChange={(event) => setDuration(Number(event.target.value))}
-                />
-              </div>
-              <div className="field">
-                <label htmlFor="sample-rate">Sample rate</label>
-                <select
-                  id="sample-rate"
-                  value={sampleRate}
-                  onChange={(event) => setSampleRate(Number(event.target.value))}
-                >
-                  {SAMPLE_RATES.map((rate) => (
-                    <option key={rate} value={rate}>
-                      {rate.toLocaleString()} Hz
-                    </option>
-                  ))}
-                </select>
+              <div className="field-grid field-grid--compact">
+                <div className="field">
+                  <label htmlFor="duration">Duration (s)</label>
+                  <input
+                    id="duration"
+                    type="number"
+                    min={MIN_DURATION}
+                    max={MAX_DURATION}
+                    step={0.5}
+                    value={duration}
+                    onChange={(event) => setDuration(Number(event.target.value))}
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="sample-rate">Sample rate</label>
+                  <select
+                    id="sample-rate"
+                    value={sampleRate}
+                    onChange={(event) => setSampleRate(Number(event.target.value))}
+                  >
+                    {SAMPLE_RATES.map((rate) => (
+                      <option key={rate} value={rate}>
+                        {rate.toLocaleString()} Hz
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <div className="field">
                 <label htmlFor="shots">Shots</label>
@@ -925,57 +965,6 @@ export default function HomePage() {
             {isGenerating ? "Synthesizing…" : "Generate audio"}
           </button>
 
-          <div className="transport-row">
-            <button className="btn-ghost btn-ghost--accent" type="button" onClick={playAudio}>
-              ▶ Play
-            </button>
-            <button className="btn-ghost" type="button" onClick={stopAudio}>
-              ■ Stop
-            </button>
-            <button
-              className="btn-ghost"
-              type="button"
-              onClick={saveAudio}
-              disabled={!result?.audio_base64}
-              title={result?.audio_base64 ? "Download the generated WAV" : "Generate audio first"}
-            >
-              Save WAV
-            </button>
-            <button
-              className="btn-ghost"
-              type="button"
-              onClick={() => qasmInputRef.current?.click()}
-            >
-              Load QASM
-            </button>
-            <button className="btn-ghost btn-ghost--wide" type="button" onClick={saveCircuit}>
-              Export circuit
-            </button>
-            <input
-              ref={qasmInputRef}
-              type="file"
-              accept=".qasm,text/plain"
-              hidden
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) void loadCircuitFromFile(file);
-                event.target.value = "";
-              }}
-            />
-          </div>
-
-          {audioUrl ? (
-            <audio
-              ref={audioRef}
-              src={audioUrl}
-              onEnded={() => {
-                stopPlaybackMonitor();
-                setPlaybackTime(result?.duration ?? null);
-                setStatus("Ready");
-              }}
-              style={{ display: "none" }}
-            />
-          ) : null}
         </section>
 
         <section className="panel stack center-panel">
@@ -1276,31 +1265,36 @@ export default function HomePage() {
                 <canvas ref={spectrumCanvasRef} className="waveform-canvas" />
               </div>
             </div>
+            <AudioPlayer
+              disabled={!audioUrl}
+              isPlaying={isPlaying}
+              playbackTime={playbackTime}
+              duration={result?.duration ?? 0}
+              canSave={Boolean(result?.audio_base64)}
+              onPlayPause={togglePlayPause}
+              onSeek={seekAudio}
+              onSaveAudio={saveAudio}
+              onLoadQasm={() => qasmInputRef.current?.click()}
+              onExportCircuit={() => void saveCircuit()}
+              qasmInputRef={qasmInputRef}
+              onQasmFileChange={(file) => void loadCircuitFromFile(file)}
+            />
           </div>
-        </section>
-
-        <section className="panel stack right-panel">
-          <div className="card">
-            <div className="card__head">
-              <h3 className="card__title">Spectral analysis</h3>
-              <span className="card__accent" />
-            </div>
-            <div className="metrics-box">{metricsText}</div>
-          </div>
-          <div className="card">
-            <div className="card__head">
-              <h3 className="card__title">Session log</h3>
-              <span className="card__accent" />
-            </div>
-            <div className="log-box">{logs.join("\n") || "Your studio session log appears here."}</div>
-          </div>
+          {audioUrl ? (
+            <audio
+              ref={audioRef}
+              src={audioUrl}
+              onEnded={() => {
+                stopPlaybackMonitor();
+                setPlaybackTime(result?.duration ?? 0);
+                setIsPlaying(false);
+                setStatus("Ready");
+              }}
+              style={{ display: "none" }}
+            />
+          ) : null}
         </section>
       </div>
-
-      <footer className="status-footer">
-        <span className="status-footer__label">Status</span>
-        <span className="status-footer__message">{status}</span>
-      </footer>
     </main>
   );
 }
