@@ -37,11 +37,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${display.variable} ${body.variable} ${mono.variable}`}>
       <body>
-        <div className="ambient" aria-hidden="true">
-          <div className="ambient__orb ambient__orb--violet" />
-          <div className="ambient__orb ambient__orb--indigo" />
-          <div className="ambient__orb ambient__orb--cyan" />
-        </div>
+        <div className="ambient" aria-hidden="true" />
         {children}
       </body>
     </html>

@@ -797,22 +797,31 @@ export default function HomePage() {
 
   const metricsText =
     result?.analysis_report ?? "Metrics will appear here after generation.";
+  const backendLabel = BACKEND_OPTIONS.find((option) => option.value === backend)?.label ?? backend;
+  const editorModeLabel = editorMode === "visual" ? "Visual" : "QASM";
+  const hasRunnableCircuit = editorMode === "qasm" ? qasmText.trim().length > 0 : gates.length > 0;
+  const circuitSummary =
+    editorMode === "qasm"
+      ? `${qasmLineCount} lines`
+      : `${gates.length} gate${gates.length === 1 ? "" : "s"}`;
 
   return (
     <main className="app-shell">
       <header className="hero">
         <div className="hero__brand">
-          <img
-            src="/musiq_logo_v2.png"
-            alt="Musiq"
-            className="hero__logo"
-            width={320}
-            height={88}
-          />
+          <div className="hero__wordmark" aria-label="Musiq">
+            <span>MUSI</span>
+            <span className="hero__wordmark-q">Q</span>
+          </div>
           <p className="hero__tagline">
-            Quantum circuits meet sonic sculpture — compose interference, render waveforms,
-            listen to the non-classical.
+            A focused workspace for composing quantum circuits, rendering spectral audio, and
+            reviewing the resulting signal.
           </p>
+          <div className="hero__meta" aria-label="Current session summary">
+            <span>{editorModeLabel} editor</span>
+            <span>{effectiveQubitCount}Q</span>
+            <span>{sampleRate.toLocaleString()} Hz</span>
+          </div>
         </div>
         <div className="hero__actions">
           <button
@@ -843,10 +852,17 @@ export default function HomePage() {
 
       <div className="grid">
         <section className="panel stack left-panel">
+          <div className="sidebar-intro">
+            <p className="eyebrow">Build Controls</p>
+            <h2>Shape the circuit, then render.</h2>
+          </div>
+
           <div className="card">
             <div className="card__head">
               <h3 className="card__title">Quantum Gates</h3>
-              <span className="card__accent" />
+              <span className="selected-gate" style={{ "--gate-color": GATE_COLORS[selectedGate] } as React.CSSProperties}>
+                {selectedGate}
+              </span>
             </div>
             <div className="gate-palette">
               {GATE_OPTIONS.map((gate) => (
@@ -863,14 +879,11 @@ export default function HomePage() {
                 </button>
               ))}
             </div>
-            <button
-              className="btn-ghost btn-ghost--wide"
-              type="button"
-              onClick={clearCircuit}
-              style={{ marginTop: 12 }}
-            >
-              Clear circuit
-            </button>
+            <div className="card__footer">
+              <button className="btn-ghost btn-ghost--wide" type="button" onClick={clearCircuit}>
+                Clear circuit
+              </button>
+            </div>
           </div>
 
           <div className="card">
@@ -900,6 +913,16 @@ export default function HomePage() {
                   );
                 }}
               />
+            </div>
+            <div className="mini-stats" aria-label="Circuit summary">
+              <div>
+                <span>Mode</span>
+                <strong>{editorModeLabel}</strong>
+              </div>
+              <div>
+                <span>Size</span>
+                <strong>{circuitSummary}</strong>
+              </div>
             </div>
           </div>
 
@@ -976,8 +999,9 @@ export default function HomePage() {
           <button
             className={`btn-generate ${isGenerating ? "btn-generate--loading" : ""}`}
             type="button"
-            disabled={isGenerating}
+            disabled={isGenerating || !hasRunnableCircuit}
             onClick={generateAudio}
+            title={hasRunnableCircuit ? "Generate audio" : "Add gates or load QASM first"}
           >
             {isGenerating ? "Synthesizing…" : "Generate audio"}
           </button>
@@ -985,12 +1009,28 @@ export default function HomePage() {
         </section>
 
         <section className="panel stack center-panel">
-          <div className="panel-header">
-            <h2 className="text-section-title">Circuit editor</h2>
-            <p className="hint text-hint">
-              Build on the visual lattice or edit OpenQASM 2.0 directly — load examples, tweak
-              gates, then generate audio.
-            </p>
+          <div className="workspace-titlebar">
+            <div className="panel-header">
+              <p className="eyebrow">Workspace</p>
+              <h2 className="text-section-title">Circuit editor</h2>
+              <p className="hint text-hint">
+                Build on the visual lattice or edit OpenQASM 2.0 directly.
+              </p>
+            </div>
+            <div className="status-grid" aria-label="Generation settings">
+              <div>
+                <span>Backend</span>
+                <strong>{backendLabel}</strong>
+              </div>
+              <div>
+                <span>Shots</span>
+                <strong>{shots.toLocaleString()}</strong>
+              </div>
+              <div>
+                <span>Duration</span>
+                <strong>{duration}s</strong>
+              </div>
+            </div>
           </div>
 
           <div className="circuit-toolbar">
@@ -1297,10 +1337,15 @@ export default function HomePage() {
           )}
           </div>
 
-          <div className="card">
+          <div className="card output-card">
             <div className="card__head">
-              <h3 className="card__title">Output</h3>
-              <span className="card__accent" />
+              <div>
+                <h3 className="card__title">Output</h3>
+                <p className="card__subtitle">Time-domain waveform and frequency spectrum</p>
+              </div>
+              <span className={`output-state ${audioUrl ? "output-state--ready" : ""}`}>
+                {audioUrl ? "Ready" : "Waiting"}
+              </span>
             </div>
             <div className="waveform-stack">
               <div className="waveform-box">
