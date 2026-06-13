@@ -787,16 +787,17 @@ export default function HomePage() {
     <main className="app-shell">
       <header className="hero">
         <div className="hero__brand">
-          <div className="hero__logo-wrap">
-            <img src="/musiq_logo.png" alt="Musiq" width={52} height={52} />
-          </div>
-          <div className="hero__titles">
-            <h1>Musiq</h1>
-            <p className="hero__tagline">
-              Quantum circuits meet sonic sculpture — compose interference, render waveforms,
-              listen to the non-classical.
-            </p>
-          </div>
+          <img
+            src="/musiq_logo_v2.png"
+            alt="Musiq"
+            className="hero__logo"
+            width={200}
+            height={48}
+          />
+          <p className="hero__tagline">
+            Quantum circuits meet sonic sculpture — compose interference, render waveforms,
+            listen to the non-classical.
+          </p>
         </div>
         <div className="hero__actions">
           <button

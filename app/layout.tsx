@@ -24,8 +24,8 @@ export const metadata: Metadata = {
   title: "Musiq — Quantum Sonic Studio",
   description: "Compose quantum circuits and sculpt non-classical audio in the browser.",
   icons: {
-    icon: "/musiq_logo.png",
-    apple: "/musiq_logo.png",
+    icon: "/musiq_favicon.png",
+    apple: "/musiq_favicon.png",
   },
 };
 
