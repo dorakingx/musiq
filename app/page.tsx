@@ -27,6 +27,7 @@ import {
 } from "@/lib/circuitTemplates";
 import { drawWaveformPanel } from "@/lib/waveformPlot";
 import { AudioPlayer } from "@/app/components/AudioPlayer";
+import { ChartIcon } from "@/app/components/PlayerIcons";
 import { ResearchDrawer } from "@/app/components/ResearchDrawer";
 
 const COLUMN_WIDTH = 70;
@@ -160,7 +161,8 @@ export default function HomePage() {
   const qasmLineCount = useMemo(() => countQasmLines(qasmText), [qasmText]);
 
   const appendLog = useCallback((message: string) => {
-    setLogs((prev) => [...prev, message]);
+    const timestamp = new Date().toLocaleTimeString("en-GB", { hour12: false });
+    setLogs((prev) => [...prev, `[${timestamp}] ${message}`]);
   }, []);
 
   const cancelGeneration = useCallback(
@@ -465,6 +467,19 @@ export default function HomePage() {
     stopPlaybackMonitor();
     setIsPlaying(false);
     setStatus("Ready");
+  };
+
+  const stopAudio = () => {
+    const audio = audioRef.current;
+    if (audio) {
+      audio.pause();
+      audio.currentTime = 0;
+    }
+    stopPlaybackMonitor();
+    setPlaybackTime(0);
+    setIsPlaying(false);
+    setStatus("Ready");
+    appendLog("Audio stopped");
   };
 
   const togglePlayPause = () => {
@@ -807,6 +822,7 @@ export default function HomePage() {
             aria-expanded={researchOpen}
             aria-controls="research-drawer"
           >
+            <ChartIcon />
             Analysis
           </button>
           <div className="hero__status">
@@ -970,8 +986,8 @@ export default function HomePage() {
 
         <section className="panel stack center-panel">
           <div className="panel-header">
-            <h2>Circuit editor</h2>
-            <p className="hint">
+            <h2 className="text-section-title">Circuit editor</h2>
+            <p className="hint text-hint">
               Build on the visual lattice or edit OpenQASM 2.0 directly — load examples, tweak
               gates, then generate audio.
             </p>
@@ -1061,6 +1077,7 @@ export default function HomePage() {
             </div>
           </div>
 
+          <div className="circuit-workspace">
           {editorMode === "qasm" ? (
             <div className="qasm-editor-wrap">
               <div className="qasm-editor-meta">
@@ -1278,6 +1295,7 @@ export default function HomePage() {
             </svg>
           </div>
           )}
+          </div>
 
           <div className="card">
             <div className="card__head">
@@ -1299,6 +1317,7 @@ export default function HomePage() {
               duration={result?.duration ?? 0}
               canSave={Boolean(result?.audio_base64)}
               onPlayPause={togglePlayPause}
+              onStop={stopAudio}
               onSeek={seekAudio}
               onSaveAudio={saveAudio}
             />

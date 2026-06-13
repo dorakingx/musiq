@@ -74,7 +74,7 @@ export const GATE_COLORS: Record<string, string> = {
   Y: "#60a5fa",
   Z: "#38bdf8",
   T: "#8b5cf6",
-  S: "#22d3ee",
+  S: "#67e8f9",
   CNOT: "#7c3aed",
   CZ: "#4f46e5",
   M: "#64748b",
