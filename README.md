@@ -295,7 +295,7 @@ This project is released under the [MIT License](https://opensource.org/licenses
 
 This project receives support from the **Quantum Creative Challenge**.
 
-Special thanks to @Beerantum, especially @Emmanuella-Adams, for their creative support and valuable feedback.
+Special thanks to [Beerantum](https://github.com/Beerantum), especially [Emmanuella Adams](https://github.com/Emmanuella-Adams), for their creative support and valuable feedback.
 
 ## Contributing
 
