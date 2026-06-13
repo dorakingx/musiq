@@ -809,9 +809,14 @@ export default function HomePage() {
     <main className="app-shell">
       <header className="hero">
         <div className="hero__brand">
-          <div className="hero__wordmark" aria-label="Musiq">
-            <span>MUSI</span>
-            <span className="hero__wordmark-q">Q</span>
+          <div className="hero__logo-crop" aria-label="Musiq">
+            <img
+              src="/musiq_logo_v2.png"
+              alt="Musiq"
+              className="hero__logo"
+              width={500}
+              height={500}
+            />
           </div>
           <p className="hero__tagline">
             A focused workspace for composing quantum circuits, rendering spectral audio, and
@@ -855,6 +860,23 @@ export default function HomePage() {
           <div className="sidebar-intro">
             <p className="eyebrow">Build Controls</p>
             <h2>Shape the circuit, then render.</h2>
+          </div>
+
+          <div className="generate-card">
+            <button
+              className={`btn-generate ${isGenerating ? "btn-generate--loading" : ""}`}
+              type="button"
+              disabled={isGenerating || !hasRunnableCircuit}
+              onClick={generateAudio}
+              title={hasRunnableCircuit ? "Generate audio" : "Add gates or load QASM first"}
+            >
+              {isGenerating ? "Synthesizing..." : "Generate audio"}
+            </button>
+            <p className="generate-card__hint">
+              {hasRunnableCircuit
+                ? `${duration}s render with ${shots.toLocaleString()} shots`
+                : "Add a gate or load QASM to enable rendering"}
+            </p>
           </div>
 
           <div className="card">
@@ -995,16 +1017,6 @@ export default function HomePage() {
               </div>
             </div>
           </div>
-
-          <button
-            className={`btn-generate ${isGenerating ? "btn-generate--loading" : ""}`}
-            type="button"
-            disabled={isGenerating || !hasRunnableCircuit}
-            onClick={generateAudio}
-            title={hasRunnableCircuit ? "Generate audio" : "Add gates or load QASM first"}
-          >
-            {isGenerating ? "Synthesizing…" : "Generate audio"}
-          </button>
 
         </section>
 
