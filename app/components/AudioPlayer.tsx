@@ -1,6 +1,6 @@
 "use client";
 
-import type { ChangeEvent, RefObject } from "react";
+import type { ChangeEvent } from "react";
 
 interface AudioPlayerProps {
   disabled: boolean;
@@ -11,10 +11,6 @@ interface AudioPlayerProps {
   onPlayPause: () => void;
   onSeek: (time: number) => void;
   onSaveAudio: () => void;
-  onLoadQasm: () => void;
-  onExportCircuit: () => void;
-  qasmInputRef: RefObject<HTMLInputElement>;
-  onQasmFileChange: (file: File) => void;
 }
 
 function formatTime(seconds: number): string {
@@ -33,10 +29,6 @@ export function AudioPlayer({
   onPlayPause,
   onSeek,
   onSaveAudio,
-  onLoadQasm,
-  onExportCircuit,
-  qasmInputRef,
-  onQasmFileChange,
 }: AudioPlayerProps) {
   const safeDuration = duration > 0 ? duration : 0;
   const safePlayback = Math.min(Math.max(playbackTime, 0), safeDuration || 0);
@@ -71,34 +63,15 @@ export function AudioPlayer({
         <span className="player-bar__time">
           {formatTime(safePlayback)} / {formatTime(safeDuration)}
         </span>
-      </div>
-      <div className="player-bar__actions">
         <button
           type="button"
-          className="btn-ghost"
+          className="btn-ghost player-bar__save"
           onClick={onSaveAudio}
           disabled={!canSave}
           title={canSave ? "Download the generated audio" : "Generate audio first"}
         >
           Save Audio
         </button>
-        <button type="button" className="btn-ghost" onClick={onLoadQasm}>
-          Load QASM
-        </button>
-        <button type="button" className="btn-ghost" onClick={onExportCircuit}>
-          Export circuit
-        </button>
-        <input
-          ref={qasmInputRef}
-          type="file"
-          accept=".qasm,text/plain"
-          hidden
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            if (file) onQasmFileChange(file);
-            event.target.value = "";
-          }}
-        />
       </div>
     </div>
   );

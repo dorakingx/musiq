@@ -791,8 +791,8 @@ export default function HomePage() {
             src="/musiq_logo_v2.png"
             alt="Musiq"
             className="hero__logo"
-            width={200}
-            height={48}
+            width={320}
+            height={88}
           />
           <p className="hero__tagline">
             Quantum circuits meet sonic sculpture — compose interference, render waveforms,
@@ -978,7 +978,8 @@ export default function HomePage() {
           </div>
 
           <div className="circuit-toolbar">
-            <div className="editor-tabs" role="tablist" aria-label="Circuit editor mode">
+            <div className="circuit-toolbar__left">
+              <div className="editor-tabs" role="tablist" aria-label="Circuit editor mode">
               <button
                 type="button"
                 role="tab"
@@ -1032,6 +1033,31 @@ export default function HomePage() {
                   </option>
                 ))}
               </select>
+            </div>
+            </div>
+
+            <div className="circuit-toolbar__actions">
+              <button
+                type="button"
+                className="btn-ghost"
+                onClick={() => qasmInputRef.current?.click()}
+              >
+                Load QASM
+              </button>
+              <button type="button" className="btn-ghost" onClick={() => void saveCircuit()}>
+                Export QASM
+              </button>
+              <input
+                ref={qasmInputRef}
+                type="file"
+                accept=".qasm,text/plain"
+                hidden
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) void loadCircuitFromFile(file);
+                  event.target.value = "";
+                }}
+              />
             </div>
           </div>
 
@@ -1275,10 +1301,6 @@ export default function HomePage() {
               onPlayPause={togglePlayPause}
               onSeek={seekAudio}
               onSaveAudio={saveAudio}
-              onLoadQasm={() => qasmInputRef.current?.click()}
-              onExportCircuit={() => void saveCircuit()}
-              qasmInputRef={qasmInputRef}
-              onQasmFileChange={(file) => void loadCircuitFromFile(file)}
             />
           </div>
           {audioUrl ? (
