@@ -295,6 +295,8 @@ This project is released under the [MIT License](https://opensource.org/licenses
 
 This project receives support from the **Quantum Creative Challenge**.
 
+Special thanks to @Beerantum, especially @Emmanuella-Adams, for their creative support and valuable feedback.
+
 ## Contributing
 
 This is a research tool. For questions or contributions, please refer to the main Q-Wave project documentation.
