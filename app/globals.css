@@ -171,8 +171,8 @@ button:active:not(:disabled) {
 
 .hero__logo-crop {
   position: relative;
-  width: min(300px, 80vw);
-  height: 82px;
+  width: min(320px, 82vw);
+  height: 100px;
   overflow: hidden;
 }
 
@@ -180,8 +180,8 @@ button:active:not(:disabled) {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 300px;
-  height: 300px;
+  width: 520px;
+  height: 520px;
   max-width: none;
   object-fit: contain;
   transform: translate(-50%, -50%);
