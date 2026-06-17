@@ -214,7 +214,7 @@ export function readTemplateFile(filename: string): {
       const sizeMb = (entry.file_size_bytes / (1024 * 1024)).toFixed(1);
       throw new Error(
         `Template "${safeName}" is too large for the web editor (${sizeMb} MB). ` +
-          `Use a smaller example or load it via the CLI (qwave_run.py).`,
+          `Use a smaller example or load it via the CLI (musiq_run.py).`,
       );
     }
   }
@@ -225,7 +225,7 @@ export function readTemplateFile(filename: string): {
     const sizeMb = (fileSize / (1024 * 1024)).toFixed(1);
     throw new Error(
       `Template "${safeName}" is too large for the web editor (${sizeMb} MB). ` +
-        `Use a smaller example or load it via the CLI (qwave_run.py).`,
+        `Use a smaller example or load it via the CLI (musiq_run.py).`,
     );
   }
 

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Run Q-Wave GUI: project venv (pygame, qiskit, …) + PYTHONPATH for the qwave package layout.
+# Run Musiq GUI: project venv (pygame, qiskit, …) + PYTHONPATH for the musiq package layout.
 
 set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -20,7 +20,7 @@ if [ -z "$VENV_PY" ]; then
   exit 1
 fi
 
-# Repo root must be on PYTHONPATH so the `qwave` package directory resolves.
+# Repo root must be on PYTHONPATH so the `musiq` package directory resolves.
 export PYTHONPATH="$SCRIPT_DIR${PYTHONPATH:+:$PYTHONPATH}"
 
-exec "$VENV_PY" qwave_gui.py
+exec "$VENV_PY" musiq_gui.py

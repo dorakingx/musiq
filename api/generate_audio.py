@@ -8,7 +8,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from qwave.web.pipeline import generate_audio_from_payload
+from musiq.web.pipeline import generate_audio_from_payload
 
 
 class handler(BaseHTTPRequestHandler):

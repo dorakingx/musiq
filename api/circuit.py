@@ -8,7 +8,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from qwave.web.circuit_qasm import export_qasm_from_payload, import_gates_from_qasm
+from musiq.web.circuit_qasm import export_qasm_from_payload, import_gates_from_qasm
 
 
 class handler(BaseHTTPRequestHandler):

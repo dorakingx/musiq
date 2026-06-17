@@ -336,7 +336,7 @@ export default function HomePage() {
         const sizeMb = ((catalogEntry.file_size_bytes ?? 0) / (1024 * 1024)).toFixed(1);
         window.alert(
           `"${catalogEntry.label}" is too large for the web editor (${sizeMb} MB). ` +
-            "Choose a smaller example, or use qwave_run.py with this QASM file.",
+            "Choose a smaller example, or use musiq_run.py with this QASM file.",
         );
         setTemplateSelectValue("");
         return;
@@ -729,7 +729,7 @@ export default function HomePage() {
       return;
     }
     const blob = base64ToBlob(result.audio_base64, "audio/wav");
-    const filename = result.saved_audio_filename || "qwave_output.wav";
+    const filename = result.saved_audio_filename || "musiq_output.wav";
     downloadBlob(blob, filename);
     appendLog(`Audio saved to: ${filename}`);
     window.alert(`Audio saved to:\n${filename}`);

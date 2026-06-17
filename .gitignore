@@ -59,6 +59,6 @@ node_modules/
 out/
 
 # Python packaging
-qwave.egg-info/
+musiq.egg-info/
 .vercel
 circuits/quantum_walk_56q.qasm

@@ -131,7 +131,7 @@ preview data, spectral metrics, backend status, and generation logs.
 
 ## Local Python Tools
 
-The original Q-Wave Python tooling is still available for local research and desktop
+The original Musiq Python tooling is still available for local research and desktop
 workflows.
 
 ### Install Python Dependencies
@@ -152,7 +152,7 @@ pip install -r api/requirements.txt
 ### CLI
 
 ```bash
-python qwave_run.py -c circuits/example_iqp_4q.qasm -o output.wav
+python musiq_run.py -c circuits/example_iqp_4q.qasm -o output.wav
 ```
 
 Useful options:
@@ -169,7 +169,7 @@ Useful options:
 Example:
 
 ```bash
-python qwave_run.py \
+python musiq_run.py \
   -c circuits/simple_entangled_3q.qasm \
   -o generated_audio/simple_entangled.wav \
   -d 3 \
@@ -180,7 +180,7 @@ python qwave_run.py \
 ### Desktop GUI
 
 ```bash
-python qwave_gui.py
+python musiq_gui.py
 ```
 
 The desktop GUI is a Tkinter-based local tool for visual circuit building, waveform
@@ -204,14 +204,14 @@ experience for the hosted product.
 ├── lib/                         # TypeScript helpers and types
 ├── public/                      # Web assets and bundled QASM templates
 ├── scripts/                     # Build-time template sync
-├── qwave/                       # Python quantum/audio package
+├── musiq/                       # Python quantum/audio package
 │   ├── modules/                 # Audio generation and analysis modules
 │   ├── gui/                     # Tkinter desktop GUI
 │   ├── utils/                   # Backend and audio mapping helpers
 │   └── web/                     # Web API pipeline and QASM helpers
 ├── circuits/                    # Reference OpenQASM circuits
-├── qwave_run.py                 # CLI entry point
-├── qwave_gui.py                 # Desktop GUI entry point
+├── musiq_run.py                 # CLI entry point
+├── musiq_gui.py                 # Desktop GUI entry point
 ├── vercel.json                  # Vercel function and rewrite config
 └── README.md
 ```

@@ -3,9 +3,9 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "qwave"
+name = "musiq"
 version = "1.0.0"
-description = "Quantum circuit–based audio waveform generation (Q-Wave)"
+description = "Quantum circuit–based audio waveform generation (Musiq)"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -22,4 +22,4 @@ dependencies = [
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["qwave*"]
+include = ["musiq*"]
