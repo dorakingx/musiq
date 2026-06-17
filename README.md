@@ -278,5 +278,6 @@ This project is released under the MIT License.
 
 ## Acknowledgments
 
-Musiq builds on the Q-Wave quantum audio research workflow and receives support from
-the Quantum Creative Challenge.
+This project receives support from the **Quantum Creative Challenge**.
+
+Special thanks to [Beerantum](https://github.com/Beerantum), especially [Emmanuella Adams](https://github.com/Emmanuella-Adams), for their creative support and valuable feedback.
