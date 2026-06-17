@@ -1,309 +1,282 @@
-# Q-Wave: Quantum Circuit Audio Generator
+# Musiq
 
-**Quantum Circuit-Based Audio Waveform Generator**
+**Quantum Sonic Studio for composing quantum circuits and rendering non-classical audio.**
 
-Q-Wave is a tool that generates non-classical audio patterns from quantum circuits. It provides both a command-line interface (CUI) and a graphical user interface (GUI) for building quantum circuits and generating audio waveforms that capture quantum interference patterns in sound.
+Musiq turns OpenQASM / visual quantum circuits into WAV audio, waveform previews,
+frequency-spectrum previews, and spectral analysis reports. The current primary
+experience is a polished browser workspace deployed on Vercel.
 
-## Overview
+- Production: https://musiquantum.vercel.app/
+- Repository: https://github.com/dorakingx/musiq
 
-This tool implements the core functionality of the Q-Wave project: converting quantum circuit measurements into audio waveforms. The generated audio patterns are designed to exhibit non-classical characteristics that distinguish them from classical noise or random audio generation.
+## What You Can Do
 
-## Features
+- Build small circuits visually with `H`, `X`, `Y`, `Z`, `T`, `S`, `CNOT`, `CZ`, and measurement gates.
+- Switch between Visual view and Code (QASM) view.
+- Load bundled OpenQASM examples from the template catalog.
+- Import and export `.qasm` circuits.
+- Generate audio from a visual circuit or pasted QASM.
+- Play, seek, stop, and download generated WAV audio.
+- Inspect waveform and spectrum output in the browser.
+- Open the Analysis drawer for spectral metrics and the session log.
+- Choose compute backends:
+  - Local Ideal Simulator (default)
+  - IonQ Simulator
+  - IonQ QPU (Hardware)
 
-- **Quantum Circuit Simulation**: Load and execute quantum circuits from QASM files using Qiskit
-- **Non-Classical Audio Generation**: Map quantum interference patterns to audio waveforms
-- **Spectral Analysis**: Analyze generated audio for quantum-like characteristics
-- **Flexible Configuration**: Customizable duration, sample rate, and measurement shots
-- **GUI Application**: Visual circuit builder with real-time audio generation, auto-saved WAV files, playback, waveform/spectrum display, and floating spectrogram viewer
+## Quick Start
 
-## Installation
-
-### Prerequisites
-
-- Python 3.8 or higher
-- pip (Python package manager)
-
-### Setup
-
-1. Create a virtual environment (recommended), then install dependencies:
+### Web UI
 
 ```bash
+npm install
+npm run dev
+```
+
+Open http://localhost:3000.
+
+The local Next.js dev server is useful for UI and template work. Full audio generation
+uses the Python serverless API under `api/`, so use Vercel or `vercel dev` when you
+need production-like API behavior locally.
+
+```bash
+npx vercel dev
+```
+
+### Production Build
+
+```bash
+npm run build
+npm run start
+```
+
+`npm run build` runs `scripts/sync-circuit-templates.mjs` first. That script copies
+web-loadable QASM templates into `public/circuit-templates/` and writes the template
+manifest used by the browser app.
+
+## Environment Variables
+
+Create `.env` for local secrets:
+
+```bash
+IONQ_API_KEY=your_api_key_here
+```
+
+On Vercel, set `IONQ_API_KEY` in Project Settings -> Environment Variables.
+
+If `IONQ_API_KEY` is missing and a user selects an IonQ backend, Musiq falls back to
+the Local Ideal Simulator and reports the fallback in the session log.
+
+## Browser Workflow
+
+1. Select a gate in **Build Controls**.
+2. Place gates on the visual lattice, or switch to **Code (QASM) view** and paste OpenQASM.
+3. Set qubits, duration, sample rate, shots, and backend.
+4. Click **Generate audio**.
+5. Review the waveform first, then the spectrum below it.
+6. Use the player to listen, seek, stop, or download the generated WAV.
+7. Open **Analysis** for spectral metrics and the session log.
+
+### Current Limits
+
+| Setting | Range |
+| --- | --- |
+| Visual editor qubits | 2-10 |
+| Duration | 0.5-60 seconds |
+| Sample rates | 22,050 / 44,100 / 48,000 / 96,000 Hz |
+| Shots | 128-8,192 |
+| Web-loadable QASM template size | 2 MB max |
+
+Large templates can remain listed in the manifest but are intentionally not served to
+the browser when they exceed the web editor size limit.
+
+## QASM Templates
+
+Reference circuits live in `circuits/`. Build-time web templates are copied into
+`public/circuit-templates/`.
+
+The current bundled web catalog includes examples such as:
+
+- Bell State (2Q)
+- GHZ State (3Q)
+- Simple Entangled (3Q)
+- Ring Entangle (4Q)
+- Example IQP (4Q)
+- IQP Circuit (8Q, 16Q, 20Q, 24Q, 56Q)
+- Quantum Walk (8Q)
+- Hadamard + Measure (8Q)
+- Mixed Gates (5Q)
+
+Quantum Walk templates that use custom or multi-controlled gates may be QASM-only in
+the browser lattice. They can still be inspected in Code view and used for generation
+when they are within the web-loadable size limit.
+
+To refresh the web catalog manually:
+
+```bash
+node scripts/sync-circuit-templates.mjs
+```
+
+## API Overview
+
+| Endpoint | Runtime | Purpose |
+| --- | --- | --- |
+| `POST /api/templates` | Next.js route | List or read bundled QASM templates |
+| `POST /api/circuit` | Python serverless | Import/export visual circuits as QASM |
+| `POST /api/generate_audio` | Python serverless | Simulate the circuit and return audio + analysis |
+| `GET /health` | Python serverless rewrite | Basic health check |
+
+`/api/generate_audio` returns base64 WAV audio, waveform preview points, spectrum
+preview data, spectral metrics, backend status, and generation logs.
+
+## Local Python Tools
+
+The original Q-Wave Python tooling is still available for local research and desktop
+workflows.
+
+### Install Python Dependencies
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
-# Optional: editable install so `import qwave` works without PYTHONPATH
 pip install -e .
 ```
 
-2. Verify installation:
+For Vercel/Python API dependencies only:
 
 ```bash
-python qwave_run.py --help
+pip install -r api/requirements.txt
 ```
 
-## Usage
-
-### GUI Application (Recommended)
-
-For a visual interface to build circuits and generate audio:
-
-```bash
-python qwave_gui.py
-```
-
-![Quantum Circuit Builder](images/quantum_circuit.png)
-
-The GUI automatically saves every generated WAV file to a configurable folder (`generated_audio/` by default). Use the **Output Settings** panel to change the destination. When you click **Generate Audio**, the analysis and preview plots update instantly.
-
-![Audio Waveform](images/audio_wave.png)
-
-During playback a dedicated viewer window opens, showing both waveform and spectrogram with a red cursor that tracks the audio, so you can correlate what you hear with the evolving quantum pattern.
-
-#### GUI Workflow
-
-1. **Select a Gate**: Choose from H, X, Y, Z, T, S, CNOT, CZ, Measurement, or Remove Gate.  
-2. **Place or Remove**: Click on the circuit grid; hover previews show exact placement, and clicking the same gate again toggles it off.  
-3. **Configure Parameters**: Adjust qubit count, duration (0.5–60s), sample rate (22.05–96 kHz), measurement shots (128–8192), and output folder.  
-4. **Generate Audio**: Runs simulation in the background, logs progress, saves WAV automatically, and prints analysis.  
-5. **Play / Stop / Save**: Listen immediately, inspect waveform + spectrum, and export circuits or audio files as needed.
-
-Additional tips:
-- Use the hover guides and column numbers to see exactly where a gate will land before clicking.
-- The “Remove Gate” option or simply re-clicking the same gate/column lets you tidy circuits quickly.
-- The log panel records every saved file path, making it easy to locate rendered audio.
-
-#### GUI Usage Details
-
-**Building a Circuit**
-- Pick a gate from the left panel (H/X/Y/Z/T/S, CNOT/CZ, Measurement, or Remove).  
-- Click the desired qubit line; two-qubit gates automatically target the qubit below the control.  
-- Use “Clear Circuit” to reset. Hover highlights and translucent previews show exact placement.
-
-**Generating Audio**
-1. Set qubits, duration, sample rate, shots, and auto-save folder.  
-2. Press **Generate Audio**. Simulation + audio rendering run asynchronously.  
-3. Review spectral metrics (centroid, bandwidth, non-stationarity, modulation depth, quantum likelihood).  
-4. Every render drops a timestamped WAV into the chosen folder.
-
-**Playback & Visualization**
-- **Play Audio** launches the floating waveform/spectrogram viewer with a real-time cursor.  
-- **Stop Audio** halts playback and freezes the cursor at the end.  
-- **Save Audio** lets you copy the auto-saved file to any location.
-
-**Circuit Management**
-- **Save Circuit** exports the current design to QASM.  
-- **Load Circuit** imports QASM (visual reconstruction guidance is shown in the log).  
-- Gate selection “Remove” or repeated clicks provide quick edits without clearing the canvas.
-
-**Interface Layout**
-- **Left**: Gate list, circuit parameters, audio parameters, output settings, control buttons.  
-- **Center**: Scrollable circuit builder with column numbers, hover guides, and previews.  
-- **Right**: Status, progress bar, analysis text, combined waveform/spectrum plot.  
-- **Bottom**: Log panel with timestamps and file paths.
-
-**Example Workflows**
-- *Bell State*: H on q0, CNOT q0→q1, set 3 s/44100 Hz, generate, play, observe entangled spectrum.  
-- *Entangled Stack*: H on multiple qubits, layered CNOT/CZ, sprinkle T/S gates, render 10 s @ 48 kHz for evolving textures.
-
-**Troubleshooting**
-- Ensure at least one gate is present; two-qubit gates require space below.  
-- If Tkinter is unavailable in your venv, run the GUI with system Python or install `python-tk`.  
-- Playback issues: verify `pygame` installed, confirm audio file exists (log shows path), and test with an external player if needed.
-
-### Command-Line Interface
-
-For scripted or automated usage:
+### CLI
 
 ```bash
 python qwave_run.py -c circuits/example_iqp_4q.qasm -o output.wav
 ```
 
-### Advanced Usage
+Useful options:
+
+| Argument | Short | Default | Description |
+| --- | --- | --- | --- |
+| `--circuit` | `-c` | required | Input QASM circuit |
+| `--output` | `-o` | required | Output WAV path |
+| `--duration` | `-d` | `5.0` | Audio duration in seconds |
+| `--samplerate` | `-s` | `44100` | Audio sample rate |
+| `--shots` | | `1024` | Quantum measurement shots |
+| `--no-analysis` | | `false` | Skip spectral analysis |
+
+Example:
 
 ```bash
 python qwave_run.py \
-  -c circuits/example_iqp_4q.qasm \
-  -o results/q_sound_01.wav \
-  -d 10 \
+  -c circuits/simple_entangled_3q.qasm \
+  -o generated_audio/simple_entangled.wav \
+  -d 3 \
   -s 48000 \
-  -shots 4096
+  --shots 4096
 ```
 
-### Command-Line Arguments
+### Desktop GUI
 
-| Argument | Short | Required | Default | Description |
-|----------|-------|----------|---------|-------------|
-| `--circuit` | `-c` | Yes | - | Path to input QASM circuit file |
-| `--output` | `-o` | Yes | - | Path to output WAV file |
-| `--duration` | `-d` | No | 5.0 | Audio duration in seconds |
-| `--samplerate` | `-s` | No | 44100 | Audio sample rate in Hz |
-| `--shots` | - | No | 1024 | Number of quantum measurement shots |
-| `--no-analysis` | - | No | False | Skip spectral analysis |
-
-### Examples
-
-**Generate 3-second audio from a simple circuit:**
 ```bash
-python qwave_run.py -c circuits/simple_entangled_3q.qasm -o short_audio.wav -d 3
+python qwave_gui.py
 ```
 
-**Generate high-quality audio with more measurements:**
-```bash
-python qwave_run.py -c circuits/example_iqp_4q.qasm -o hq_audio.wav -d 5 -shots 8192 -s 48000
-```
-
-**Generate audio without spectral analysis (faster):**
-```bash
-python qwave_run.py -c circuits/example_iqp_4q.qasm -o quick_audio.wav --no-analysis
-```
-
-## How It Works
-
-### 1. Quantum Circuit Loading
-The tool loads quantum circuits from OpenQASM 2.0 format files. These circuits define quantum gates and measurements.
-
-### 2. Quantum Simulation
-The loaded circuit is executed on a local quantum simulator (Qiskit Aer). The simulation produces:
-- **Measurement results**: Bitstring outcomes and their frequencies
-- **Statevector**: Full quantum state including phase information
-- **Probability distribution**: Normalized probabilities for each state
-
-### 3. Audio Generation
-The quantum measurement data is mapped to audio waveforms using algorithms that:
-- Extract interference patterns from quantum phases
-- Map quantum states to frequency components
-- Apply time-varying modulations based on quantum correlations
-- Generate non-stationary audio patterns
-
-### 4. Spectral Analysis
-The generated audio is analyzed to detect:
-- **Non-stationarity**: Time-varying spectral characteristics
-- **Modulation patterns**: Amplitude and frequency modulations
-- **Quantum indicators**: Metrics suggesting quantum-like patterns
+The desktop GUI is a Tkinter-based local tool for visual circuit building, waveform
+generation, playback, and saved WAV output. The browser app is the recommended user
+experience for the hosted product.
 
 ## Project Structure
 
-```
+```text
 .
-├── qwave/                    # Python package (`import qwave`)
-│   ├── modules/              # Simulator, audio generator, analyzer, optimizer
-│   ├── gui/                  # Tkinter UI (circuit builder, plots, playback)
-│   ├── utils/                # Constants and quantum–audio mapping helpers
-│   ├── examples/             # Sample scripts
-│   └── scripts/              # Utilities (e.g. verification scripts)
-├── qwave_gui.py              # GUI entry point (`python qwave_gui.py`)
-├── qwave_run.py              # CLI entry point
-├── run_gui.sh                # GUI launcher with venv + PYTHONPATH
-├── images/                   # Screenshots for README (optional)
-├── requirements.txt
-├── pyproject.toml            # Optional: pip install -e .
-├── circuits/                 # Sample and reference OpenQASM 2.0 circuits
+├── app/                         # Next.js app router UI
+│   ├── api/templates/route.ts   # Template catalog API
+│   ├── components/              # Audio player, icons, analysis drawer
+│   ├── globals.css              # Product styling
+│   ├── layout.tsx
+│   └── page.tsx                 # Main browser workspace
+├── api/                         # Vercel Python serverless functions
+│   ├── circuit.py
+│   ├── generate_audio.py
+│   └── health.py
+├── lib/                         # TypeScript helpers and types
+├── public/                      # Web assets and bundled QASM templates
+├── scripts/                     # Build-time template sync
+├── qwave/                       # Python quantum/audio package
+│   ├── modules/                 # Audio generation and analysis modules
+│   ├── gui/                     # Tkinter desktop GUI
+│   ├── utils/                   # Backend and audio mapping helpers
+│   └── web/                     # Web API pipeline and QASM helpers
+├── circuits/                    # Reference OpenQASM circuits
+├── qwave_run.py                 # CLI entry point
+├── qwave_gui.py                 # Desktop GUI entry point
+├── vercel.json                  # Vercel function and rewrite config
 └── README.md
 ```
 
-Install in editable mode (sets up imports without manual `PYTHONPATH`):
+## Deployment
+
+The production site is deployed by Vercel from `main`.
+
+Typical release flow:
 
 ```bash
-pip install -e .
+git status
+npm run build
+git add <changed files>
+git commit -m "Describe the change"
+git push origin main
 ```
 
-## Understanding the Output
+Vercel automatically builds and aliases the production deployment to:
 
-### Audio File
-The generated WAV file contains audio waveforms that reflect quantum interference patterns. These patterns may exhibit:
-- Non-stationary spectral content
-- Complex modulation characteristics
-- Phase relationships indicative of quantum interference
-
-### Spectral Analysis Report
-The analysis report includes:
-
-**Basic Spectral Features:**
-- Spectral Centroid: Average frequency (brightness)
-- Spectral Bandwidth: Frequency spread
-- Spectral Rolloff: Frequency below which 85% of energy is contained
-- Spectral Flatness: Measure of noisiness
-
-**Non-Stationarity Analysis:**
-- Non-Stationarity Index: Variation of spectral content over time
-- Temporal Variation: Normalized variance of spectral features
-
-**Modulation Characteristics:**
-- Modulation Depth: Amplitude modulation strength
-- Frequency Modulation Index: Frequency variation
-- Spectral Spread: Frequency distribution characteristics
-
-**Quantum Pattern Indicators:**
-- Spectral Entropy: Complexity measure
-- Phase Coherence: Phase relationship consistency
-- Periodicity Strength: Regular pattern strength
-- Quantum Likelihood Score: Combined quantum indicator
-
-## Creating Custom Circuits
-
-You can create your own QASM circuit files. The circuit should:
-- Use OpenQASM 2.0 format
-- Include quantum gates that create interference (Hadamard, phase gates)
-- Include entanglement (CNOT, CZ gates)
-- End with measurement operations
-
-Example minimal circuit:
-```qasm
-OPENQASM 2.0;
-include "qelib1.inc";
-
-qreg q[2];
-creg c[2];
-
-h q[0];
-cx q[0],q[1];
-h q[0];
-h q[1];
-
-measure q[0] -> c[0];
-measure q[1] -> c[1];
+```text
+https://musiquantum.vercel.app/
 ```
 
-## Technical Details
+## How Audio Generation Works
 
-### Quantum-to-Audio Mapping Algorithm
+1. The app receives either visual circuit JSON or OpenQASM 2.0.
+2. The circuit is simulated locally or submitted to IonQ for measurement shots.
+3. Quantum probabilities and measurement sequences are mapped into audio features.
+4. A WAV buffer is generated and returned to the browser as base64.
+5. The browser renders waveform and spectrum previews and exposes the WAV for download.
 
-The core algorithm uses the quantum statevector to generate audio:
+The generated audio is experimental. It is designed to expose quantum-inspired
+interference and modulation behavior, not to guarantee conventional musical output.
 
-1. **Frequency Mapping**: Each quantum state maps to a frequency component (logarithmic scale, 20 Hz - 20 kHz)
-2. **Amplitude Modulation**: Quantum amplitudes determine component strengths
-3. **Phase Modulation**: Quantum phases create interference patterns
-4. **Time Modulation**: Non-stationary patterns emerge from quantum correlations
+## Troubleshooting
 
-### Limitations
+### Template API returns 404 or invalid data
 
-- Circuit size: Optimized for circuits with < 20 qubits
-- Simulation time: Larger circuits or more shots increase computation time
-- Audio quality: Generated patterns are experimental and may not be musical
+Restart the dev server and make sure templates have been synced:
 
-## Future Development
+```bash
+node scripts/sync-circuit-templates.mjs
+npm run dev
+```
 
-This CUI tool serves as the foundation for:
-- GUI interface development (planned 2025-2026)
-- Advanced quantum audio algorithms
-- Real-time quantum audio generation
-- Integration with quantum hardware
+### IonQ backend falls back to local simulation
+
+Set `IONQ_API_KEY` locally or in Vercel environment variables.
+
+### Visual view is disabled
+
+The visual editor supports up to 10 qubits. Larger QASM programs can still be edited
+and generated from Code (QASM) view when they are otherwise supported by the API.
+
+### Local generation fails in `npm run dev`
+
+Use `vercel dev` for local testing of Vercel Python serverless functions, or use the
+Python CLI directly for local renders.
 
 ## License
 
-This project is released under the [MIT License](https://opensource.org/licenses/MIT).
+This project is released under the MIT License.
 
 ## Acknowledgments
 
-This project receives support from the **Quantum Creative Challenge**.
-
-Special thanks to [Beerantum](https://github.com/Beerantum), especially [Emmanuella Adams](https://github.com/Emmanuella-Adams), for their creative support and valuable feedback.
-
-## Contributing
-
-This is a research tool. For questions or contributions, please refer to the main Q-Wave project documentation.
-
-## References
-
-- Qiskit Documentation: https://qiskit.org/documentation/
-- OpenQASM Specification: https://github.com/Qiskit/openqasm
-- Librosa Documentation: https://librosa.org/doc/latest/
-
+Musiq builds on the Q-Wave quantum audio research workflow and receives support from
+the Quantum Creative Challenge.
