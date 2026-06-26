@@ -247,6 +247,176 @@ https://musiquantum.vercel.app/
 The generated audio is experimental. It is designed to expose quantum-inspired
 interference and modulation behavior, not to guarantee conventional musical output.
 
+## Core Quantum Components: Code & Explanation
+
+Use this section as a presentation guide: show the code, explain the quantum physics,
+then connect it to what listeners actually hear.
+
+> **Live demo tip:** Load these templates from the browser catalog — **Example IQP (4Q)**,
+> **IQP Circuit (8Q)**, **Bell State (2Q)**, or **GHZ State (3Q)** — then click
+> **Generate audio**.
+
+---
+
+### 1. Complex Distributions via IQP Circuits
+
+#### Show the Code
+
+Equivalent Qiskit for `circuits/example_iqp_4q.qasm` and the IQP family
+(`circuits/iqp_8q.qasm`, etc.):
+
+```python
+from qiskit import QuantumCircuit
+
+qc = QuantumCircuit(4)
+
+# Layer 1: put every qubit in superposition
+qc.h(range(4))
+
+# Layer 2: inject phase (T, Z gates) — the "P" in IQP
+qc.t(0); qc.t(1)
+qc.z(2); qc.z(3)
+
+# Layer 3: entangle pairs, then re-Hadamard to create interference
+qc.cz(0, 1)
+qc.cz(2, 3)
+qc.h(range(4))
+
+qc.measure_all()
+```
+
+For a pure superposition baseline, see `circuits/hadamard_all_measure_8q.qasm`:
+
+```python
+qc = QuantumCircuit(8)
+qc.h(range(8))   # equal-weight superposition across all 8 qubits
+qc.measure_all()
+```
+
+#### Explain the Quantum Component
+
+Hadamard gates place each qubit in **superposition** — it exists in `|0⟩` and `|1⟩`
+at once. Phase gates (`T`, `Z`) and controlled-Z gates (`CZ`) twist those amplitudes
+before they meet again. When the second Hadamard layer runs, paths **interfere**:
+some outcomes amplify (constructive), others cancel (destructive). The result is a
+**highly structured probability landscape** — not flat randomness.
+
+#### What It Actually Does (Musical Impact)
+
+Classical random number generators produce **flat, featureless noise**. IQP circuits
+produce **spiky, complex probability distributions** — some bitstrings are far more
+likely than others, with sharp peaks and deep valleys. Musiq reads those peaks as
+musical events: sudden pitch jumps, rhythmic accents, and timbral shifts that feel
+rich and unpredictable, yet remain **mathematically grounded** in quantum interference.
+
+---
+
+### 2. Harmonic Entanglement for Polyphony (Bell & GHZ States)
+
+#### Show the Code
+
+**Bell state** — two voices locked together (`circuits/bell_2q.qasm`):
+
+```python
+from qiskit import QuantumCircuit
+
+# q[0] = Soprano voice, q[1] = Bass voice
+qc = QuantumCircuit(2)
+qc.h(0)        # superposition on Soprano
+qc.cx(0, 1)    # entangle Soprano ↔ Bass (|00⟩ + |11⟩ only)
+qc.measure_all()
+```
+
+**GHZ state** — three or more voices in full correlation (`circuits/ghz_3q.qasm`):
+
+```python
+qc = QuantumCircuit(3)
+qc.h(0)
+qc.cx(0, 1)    # entangle voice 1 ↔ 2
+qc.cx(1, 2)    # chain to voice 3 → |000⟩ + |111⟩ only
+qc.measure_all()
+```
+
+On IonQ hardware, **all-to-all connectivity** means qubits assigned to distant
+musical voices (e.g., Soprano on `q[0]`, Bass on `q[7]`) can be entangled in a
+single gate — no long swap chains required.
+
+#### Explain the Quantum Component
+
+**Entanglement** links qubits so their measurement outcomes are correlated — measuring
+one instantly constrains the others. A Bell pair yields only `00` or `11`; a GHZ state
+yields only `000` or `111`. These are not independent coin flips; they are a single
+quantum object observed from multiple angles.
+
+#### What It Actually Does (Musical Impact)
+
+Entanglement **mathematically couples** independent musical parts. When Soprano and
+Bass qubits are Bell-entangled, their pitches and rhythms move **in sync** — they
+rise and fall together rather than drifting into disconnected chaos. GHZ states extend
+this to three or more voices, creating **polyphonic harmony** where every part
+"agrees" on the same quantum outcome. The music feels **cohesive and intentional**,
+not like unrelated noise streams layered on top of each other.
+
+---
+
+### 3. Probability-to-Audio Mapping (The Translation)
+
+#### Show the Code
+
+**Step A — extract probabilities from measurement shots** (`musiq/web/pipeline.py`):
+
+```python
+def _probability_distribution_from_counts(counts, num_qubits, shots):
+    num_states = 2 ** num_qubits
+    probabilities = np.zeros(num_states)
+    for bitstring, count in counts.items():
+        probabilities[int(bitstring, 2)] = count / shots  # normalize counts → P(state)
+    return probabilities
+```
+
+**Step B — map quantum results to audio** (`musiq/modules/generator.py`):
+
+```python
+# Each state index → musical pitch; amplitude & phase → timbre
+for idx, (amp, phase) in enumerate(zip(amplitudes, phases)):
+    freq = self._index_to_musical_frequency(idx)   # state index → Hz (scale notes)
+    harmonic_mix = (
+        0.7 * np.sin(2 * np.pi * freq * t + phase) +
+        0.2 * np.sin(2 * np.pi * freq * 2 * t + phase * 1.5) +
+        0.1 * np.sin(2 * np.pi * freq * 3 * t + phase * 2.0)
+    )
+    waveform += amp * harmonic_mix   # probability amplitude → loudness
+```
+
+The web pipeline wires it together:
+
+```python
+waveform = generator.map_quantum_to_audio(
+    statevector=statevector,                  # ideal amplitudes + phases
+    measurement_sequence=measurement_sequence, # shot-by-shot outcomes
+    probability_distribution=probability_dist, # P(|state⟩) from counts
+    duration=duration,
+)
+```
+
+#### Explain the Component
+
+The raw quantum output — whether a **statevector** (complex amplitudes) or **measurement
+counts** (shot histogram) — is the **blueprint**. State index maps to **pitch**,
+probability amplitude maps to **velocity/loudness**, and complex phase drives
+**modulation and harmonic color**. Spectral entropy from the distribution feeds the
+Analysis drawer metrics.
+
+#### What It Actually Does (Musical Impact)
+
+This step is the **bridge between the QPU and the speaker**. Without it, quantum
+results are just numbers on a screen. With it, mathematical properties — spiky IQP
+distributions, entangled correlations, phase interference — become **acoustic
+parameters**: pitch, velocity, timbre, and rhythm. The listener hears the quantum
+circuit, not a generic tone generator pretending to be quantum.
+
+---
+
 ## Troubleshooting
 
 ### Template API returns 404 or invalid data
